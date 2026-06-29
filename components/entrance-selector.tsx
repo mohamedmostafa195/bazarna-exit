@@ -52,10 +52,10 @@ export function EntranceSelector() {
           className="mx-auto rounded-xl"
         />
         <h1 className="mt-4 text-3xl font-bold text-zinc-900 dark:text-zinc-100">
-          Select Your Entrance
+          Select Your Exit Type
         </h1>
         <p className="mt-2 text-zinc-500">
-          Choose Bazarna or Byouth to enter the exit queue
+          Bazarna has two separate exits. Each has its own queue numbers.
         </p>
 
         <div className="mt-10 grid gap-6 sm:grid-cols-2">

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { EntranceSelector } from "@/components/entrance-selector";
 import { getEntranceFromCookies } from "@/lib/entrance-server";
-import { isEntranceType } from "@/lib/entrance";
 
 export default async function Home() {
   const session = await auth();
@@ -10,14 +10,10 @@ export default async function Home() {
     redirect("/login");
   }
 
-  const entrance =
-    (await getEntranceFromCookies()) ??
-    (session.user.entranceType && isEntranceType(session.user.entranceType)
-      ? session.user.entranceType
-      : null);
+  const entrance = await getEntranceFromCookies();
 
   if (!entrance) {
-    redirect("/select-entrance");
+    return <EntranceSelector />;
   }
 
   if (session.user.role === "ADMIN") {

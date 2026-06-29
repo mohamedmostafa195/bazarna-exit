@@ -63,13 +63,16 @@ function DisplayContent() {
         className="mb-6 rounded-xl object-cover"
       />
 
-      <p className="text-xl text-zinc-400">
-        {data?.event?.eventName ?? `${getEntranceLabel(entrance)} Exit Queue`}
+      <p className="text-3xl font-bold text-white">
+        {getEntranceLabel(entrance)} Exit
+      </p>
+      <p className="mt-1 text-lg text-zinc-500">
+        {data?.event?.eventName ?? "Separate queue — not shared with the other exit"}
       </p>
 
       <div className="mt-12 text-center">
         <p className="text-2xl font-medium uppercase tracking-widest text-orange-400">
-          Now Serving
+          {getEntranceLabel(entrance)} — Now Serving
         </p>
         <p className="mt-4 text-[12rem] font-bold leading-none text-white">
           {data?.currentServing ? `#${data.currentServing}` : "—"}
@@ -78,7 +81,7 @@ function DisplayContent() {
 
       <div className="mt-16 w-full max-w-2xl">
         <p className="mb-6 text-center text-xl font-medium uppercase tracking-widest text-zinc-400">
-          Upcoming Numbers
+          {getEntranceLabel(entrance)} — Upcoming
         </p>
         <div className="flex flex-wrap justify-center gap-6">
           {(data?.upcoming ?? []).length > 0 ? (

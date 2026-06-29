@@ -17,6 +17,17 @@ export function getEntranceImage(type: EntranceType): string {
 
 export function getEntranceDescription(type: EntranceType): string {
   return type === "BAZARNA"
-    ? "Main Bazarna market exit queue"
-    : "Byouth event exit queue";
+    ? "Separate Bazarna exit queue with its own numbers"
+    : "Separate Byouth exit queue with its own numbers";
+}
+
+export function getOtherEntranceType(type: EntranceType): EntranceType {
+  return type === "BAZARNA" ? "BYOUTH" : "BAZARNA";
+}
+
+export function formatQueueNumber(
+  queueNumber: number,
+  entranceType: EntranceType
+): string {
+  return `${getEntranceLabel(entranceType)} #${queueNumber}`;
 }

@@ -125,6 +125,16 @@ export default function DashboardPage() {
             {data?.entranceLabel && ` · ${data.entranceLabel}`}
             {data?.event && ` · ${data.event.eventName}`}
           </p>
+          <button
+            type="button"
+            onClick={async () => {
+              await fetch("/api/entrance", { method: "DELETE" });
+              window.location.href = "/";
+            }}
+            className="mt-1 text-sm text-orange-600 hover:underline dark:text-orange-400"
+          >
+            Switch to Bazarna or Byouth
+          </button>
         </div>
 
         {!data?.event && (
@@ -137,6 +147,10 @@ export default function DashboardPage() {
 
         {data?.event && !data.ticket && (
           <Card className="text-center">
+            <p className="mb-4 rounded-lg bg-orange-50 px-3 py-2 text-sm text-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
+              {data.entranceLabel} queue only — numbers here are separate from the
+              other exit.
+            </p>
             {data.windowState === "before" && (
               <>
                 <Clock className="mx-auto h-12 w-12 text-orange-500" />
@@ -204,7 +218,10 @@ export default function DashboardPage() {
         {data?.ticket && (
           <div className="space-y-6">
             <Card className="text-center">
-              <p className="text-sm text-zinc-500">Your Exit Number</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-orange-600 dark:text-orange-400">
+                {data.entranceLabel} Exit
+              </p>
+              <p className="mt-1 text-sm text-zinc-500">Your queue number</p>
               <p className="mt-2 text-6xl font-bold text-orange-600 dark:text-orange-400">
                 #{data.ticket.queueNumber}
               </p>
@@ -218,7 +235,9 @@ export default function DashboardPage() {
 
             <div className="grid gap-4 sm:grid-cols-3">
               <Card>
-                <p className="text-sm text-zinc-500">Now Serving</p>
+                <p className="text-sm text-zinc-500">
+                  Now Serving ({data.entranceLabel})
+                </p>
                 <p className="mt-1 text-3xl font-bold">
                   {currentServing ? `#${currentServing}` : "—"}
                 </p>

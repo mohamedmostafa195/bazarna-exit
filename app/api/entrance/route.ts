@@ -24,7 +24,18 @@ export async function POST(request: Request) {
   const response = NextResponse.json({ success: true, entranceType });
   response.cookies.set(ENTRANCE_COOKIE, entranceType, {
     path: "/",
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: 60 * 60 * 24 * 8,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
+  return response;
+}
+
+export async function DELETE() {
+  const response = NextResponse.json({ success: true });
+  response.cookies.set(ENTRANCE_COOKIE, "", {
+    path: "/",
+    maxAge: 0,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
   });
@@ -32,15 +43,10 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const session = await auth();
   const cookieHeader = request.headers.get("cookie") ?? "";
   const match = cookieHeader.match(new RegExp(`${ENTRANCE_COOKIE}=([^;]+)`));
   const fromCookie = match?.[1] ?? null;
-  const entranceType =
-    (isEntranceType(fromCookie) ? fromCookie : null) ??
-    (session?.user?.entranceType && isEntranceType(session.user.entranceType)
-      ? session.user.entranceType
-      : null);
+  const entranceType = isEntranceType(fromCookie) ? fromCookie : null;
 
   return NextResponse.json({ entranceType });
 }

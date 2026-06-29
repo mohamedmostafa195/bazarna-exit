@@ -9,6 +9,7 @@ interface QueueConfirmationEmailParams {
   brandName: string;
   queueNumber: number;
   eventName: string;
+  entranceLabel: string;
   ticketUrl: string;
   qrCodeDataUrl?: string;
 }
@@ -16,16 +17,24 @@ interface QueueConfirmationEmailParams {
 export async function sendQueueConfirmationEmail(
   params: QueueConfirmationEmailParams
 ): Promise<{ success: boolean; error?: string }> {
-  const { to, brandName, queueNumber, eventName, ticketUrl, qrCodeDataUrl } =
-    params;
+  const {
+    to,
+    brandName,
+    queueNumber,
+    eventName,
+    entranceLabel,
+    ticketUrl,
+    qrCodeDataUrl,
+  } = params;
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h1 style="color: #1a1a1a;">Bazarna Exit Queue</h1>
+      <h1 style="color: #1a1a1a;">${entranceLabel} Exit Queue</h1>
       <p>Hello <strong>${brandName}</strong>,</p>
-      <p>Your exit number has been confirmed for <strong>${eventName}</strong>.</p>
+      <p>Your <strong>${entranceLabel}</strong> exit number for <strong>${eventName}</strong> is confirmed.</p>
+      <p style="color: #666; font-size: 13px;">This number is only for the ${entranceLabel} exit. Bazarna and Byouth use separate queues.</p>
       <div style="background: #f5f5f5; padding: 24px; border-radius: 8px; text-align: center; margin: 24px 0;">
-        <p style="margin: 0; font-size: 14px; color: #666;">Your Exit Number</p>
+        <p style="margin: 0; font-size: 14px; color: #666;">${entranceLabel} Exit Number</p>
         <p style="margin: 8px 0 0; font-size: 48px; font-weight: bold; color: #1a1a1a;">#${queueNumber}</p>
       </div>
       ${qrCodeDataUrl ? `<div style="text-align: center; margin: 24px 0;"><img src="${qrCodeDataUrl}" alt="QR Code" width="200" height="200" /></div>` : ""}
@@ -51,7 +60,7 @@ export async function sendQueueConfirmationEmail(
     await resend.emails.send({
       from: process.env.EMAIL_FROM ?? "Bazarna <onboarding@resend.dev>",
       to,
-      subject: `Exit Queue #${queueNumber} - ${eventName}`,
+      subject: `${entranceLabel} Exit #${queueNumber} - ${eventName}`,
       html,
     });
     return { success: true };

@@ -5,6 +5,7 @@ import { getQueueWindowState, getTicketUrl } from "@/lib/utils";
 import { sendQueueConfirmationEmail } from "@/lib/email";
 import { resolveEntranceType } from "@/lib/entrance-server";
 import { prisma } from "@/lib/prisma";
+import { getEntranceLabel, isEntranceType } from "@/lib/entrance";
 
 export async function POST(request: Request) {
   const { session, error } = await requireBrand();
@@ -64,6 +65,9 @@ export async function POST(request: Request) {
     brandName: user?.brandName ?? session!.user.brandName,
     queueNumber: ticket.queueNumber,
     eventName: eventRecord?.eventName ?? event.eventName,
+    entranceLabel: isEntranceType(event.entranceType)
+      ? getEntranceLabel(event.entranceType)
+      : "Exit",
     ticketUrl,
   });
 

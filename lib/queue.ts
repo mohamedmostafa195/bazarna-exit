@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { emitQueueUpdate } from "@/lib/socket-server";
 import { randomBytes } from "crypto";
+import { getEntranceLabel, isEntranceType } from "@/lib/entrance";
 
 type TicketStatus = "WAITING" | "CALLED" | "COMPLETED";
 
@@ -71,12 +72,47 @@ export async function broadcastQueueUpdate(eventId: string) {
   });
 }
 
+export async function getActiveTicketInOtherEntrance(
+  userId: string,
+  currentEventId: string
+) {
+  const currentEvent = await prisma.event.findUnique({
+    where: { id: currentEventId },
+  });
+  if (!currentEvent) return null;
+
+  const otherEvent = await prisma.event.findFirst({
+    where: {
+      isActive: true,
+      entranceType: { not: currentEvent.entranceType },
+    },
+  });
+  if (!otherEvent) return null;
+
+  return prisma.queueTicket.findFirst({
+    where: {
+      userId,
+      eventId: otherEvent.id,
+      status: { in: ["WAITING", "CALLED"] },
+    },
+    include: { event: true },
+  });
+}
+
 export async function requestQueueNumber(userId: string, eventId: string) {
   const existing = await prisma.queueTicket.findUnique({
     where: { userId_eventId: { userId, eventId } },
   });
   if (existing) {
     return { error: "You already have a queue number for this event", ticket: existing };
+  }
+
+  const otherTicket = await getActiveTicketInOtherEntrance(userId, eventId);
+  if (otherTicket && isEntranceType(otherTicket.event.entranceType)) {
+    const label = getEntranceLabel(otherTicket.event.entranceType);
+    return {
+      error: `You already have an active ${label} exit number (#${otherTicket.queueNumber}). Bazarna and Byouth use separate queues — switch exit type only if you are at that location.`,
+    };
   }
 
   const result = await prisma.$transaction(async (tx) => {

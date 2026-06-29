@@ -29,12 +29,14 @@ export async function resolveEntranceType(
   request?: Request,
   sessionEntrance?: string | null
 ): Promise<EntranceType | null> {
-  if (sessionEntrance && isEntranceType(sessionEntrance)) {
-    return sessionEntrance;
-  }
   if (request) {
     const fromRequest = getEntranceFromRequest(request);
     if (fromRequest) return fromRequest;
   }
-  return getEntranceFromCookies();
+  const fromCookie = await getEntranceFromCookies();
+  if (fromCookie) return fromCookie;
+  if (sessionEntrance && isEntranceType(sessionEntrance)) {
+    return sessionEntrance;
+  }
+  return null;
 }

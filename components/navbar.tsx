@@ -7,7 +7,6 @@ import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
-  Ticket,
   Settings,
   Monitor,
   ScanLine,
@@ -17,7 +16,6 @@ import {
 
 const brandLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/my-ticket", label: "My Ticket", icon: Ticket },
 ];
 
 const adminLinks = [
@@ -69,7 +67,10 @@ export function Navbar() {
             </Link>
           ))}
           <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={async () => {
+              await fetch("/api/entrance", { method: "DELETE" });
+              signOut({ callbackUrl: "/login" });
+            }}
             className="ml-2 flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
           >
             <LogOut className="h-4 w-4" />
