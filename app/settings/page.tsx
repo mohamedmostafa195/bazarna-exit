@@ -7,10 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { formatTime } from "@/lib/utils";
+import { EntranceTabs } from "@/components/entrance-tabs";
+import {
+  getEntranceLabel,
+  type EntranceType,
+} from "@/lib/entrance";
 
 interface Event {
   id: string;
   eventName: string;
+  entranceType: string;
   eventDate: string;
   queueOpenTime: string;
   queueCloseTime: string;
@@ -21,36 +27,65 @@ export default function SettingsPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [entrance, setEntrance] = useState<EntranceType>("BAZARNA");
   const [form, setForm] = useState({
     eventName: "",
+    entranceType: "BAZARNA" as EntranceType,
     eventDate: "",
     queueOpenTime: "21:00",
     queueCloseTime: "23:00",
   });
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  function loadFormForEntrance(allEvents: Event[], type: EntranceType) {
+    const active = allEvents.find(
+      (e) => e.isActive && e.entranceType === type
+    );
+    if (active) {
+      setEditingId(active.id);
+      setForm({
+        eventName: active.eventName,
+        entranceType: type,
+        eventDate: active.eventDate.split("T")[0],
+        queueOpenTime: new Date(active.queueOpenTime)
+          .toTimeString()
+          .slice(0, 5),
+        queueCloseTime: new Date(active.queueCloseTime)
+          .toTimeString()
+          .slice(0, 5),
+      });
+    } else {
+      setEditingId(null);
+      setForm({
+        eventName: "",
+        entranceType: type,
+        eventDate: "",
+        queueOpenTime: "21:00",
+        queueCloseTime: "23:00",
+      });
+    }
+  }
+
   useEffect(() => {
     fetch("/api/admin/events")
       .then((r) => r.json())
       .then((data) => {
-        setEvents(data.events ?? []);
-        const active = data.events?.find((e: Event) => e.isActive);
-        if (active) {
-          setEditingId(active.id);
-          setForm({
-            eventName: active.eventName,
-            eventDate: active.eventDate.split("T")[0],
-            queueOpenTime: new Date(active.queueOpenTime)
-              .toTimeString()
-              .slice(0, 5),
-            queueCloseTime: new Date(active.queueCloseTime)
-              .toTimeString()
-              .slice(0, 5),
-          });
-        }
+        const allEvents = data.events ?? [];
+        setEvents(allEvents);
+        loadFormForEntrance(allEvents, entrance);
         setLoading(false);
       });
   }, []);
+
+  function handleEntranceChange(type: EntranceType) {
+    setEntrance(type);
+    loadFormForEntrance(events, type);
+    fetch("/api/entrance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entranceType: type }),
+    });
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,7 +93,9 @@ export default function SettingsPage() {
 
     const url = "/api/admin/events";
     const method = editingId ? "PUT" : "POST";
-    const body = editingId ? { eventId: editingId, ...form } : form;
+    const body = editingId
+      ? { eventId: editingId, ...form, entranceType: entrance }
+      : { ...form, entranceType: entrance };
 
     const res = await fetch(url, {
       method,
@@ -96,7 +133,13 @@ export default function SettingsPage() {
       <div className="mx-auto max-w-2xl px-4 py-8">
         <h1 className="mb-6 text-2xl font-bold">Event Settings</h1>
 
-        <Card title="Queue Time Window">
+        <EntranceTabs
+          value={entrance}
+          onChange={handleEntranceChange}
+          className="mb-6"
+        />
+
+        <Card title={`${getEntranceLabel(entrance)} Queue Time Window`}>
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               label="Event Name"
@@ -150,7 +193,12 @@ export default function SettingsPage() {
                   className="flex items-center justify-between rounded-lg border border-zinc-200 p-3 dark:border-zinc-700"
                 >
                   <div>
-                    <p className="font-medium">{event.eventName}</p>
+                    <p className="font-medium">
+                      {event.eventName}{" "}
+                      <span className="text-xs text-zinc-400">
+                        ({getEntranceLabel(event.entranceType as EntranceType)})
+                      </span>
+                    </p>
                     <p className="text-sm text-zinc-500">
                       {new Date(event.eventDate).toLocaleDateString()} ·{" "}
                       {formatTime(new Date(event.queueOpenTime))} –{" "}

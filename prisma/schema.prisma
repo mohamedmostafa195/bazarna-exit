@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -15,6 +15,7 @@ model User {
   email              String        @unique
   password           String
   role               String        @default("BRAND")
+  entranceType       String?       @map("entrance_type")
   createdAt          DateTime      @default(now()) @map("created_at")
   tickets            QueueTicket[]
 
@@ -24,6 +25,7 @@ model User {
 model Event {
   id                   String        @id @default(cuid())
   eventName            String        @map("event_name")
+  entranceType         String        @map("entrance_type")
   queueOpenTime        DateTime      @map("queue_open_time")
   queueCloseTime       DateTime      @map("queue_close_time")
   eventDate            DateTime      @map("event_date")
@@ -35,17 +37,17 @@ model Event {
 }
 
 model QueueTicket {
-  id          String   @id @default(cuid())
-  userId      String   @map("user_id")
-  eventId     String   @map("event_id")
-  queueNumber Int      @map("queue_number")
-  status      String   @default("WAITING")
-  qrToken     String   @unique @map("qr_token")
-  requestedAt DateTime @default(now()) @map("requested_at")
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  eventId     String    @map("event_id")
+  queueNumber Int       @map("queue_number")
+  status      String    @default("WAITING")
+  qrToken     String    @unique @map("qr_token")
+  requestedAt DateTime  @default(now()) @map("requested_at")
   calledAt    DateTime? @map("called_at")
   completedAt DateTime? @map("completed_at")
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([userId, eventId])
   @@unique([eventId, queueNumber])

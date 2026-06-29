@@ -37,6 +37,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
           brandName: user.brandName,
           boothNumber: user.boothNumber,
+          entranceType: user.entranceType,
         };
       },
     }),
@@ -52,6 +53,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = user.role;
         token.brandName = user.brandName;
         token.boothNumber = user.boothNumber;
+        token.entranceType = user.entranceType;
       }
       return token;
     },
@@ -61,6 +63,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.role = token.role as string;
         session.user.brandName = token.brandName as string;
         session.user.boothNumber = token.boothNumber as string;
+        session.user.entranceType = token.entranceType as string | null;
       }
       return session;
     },

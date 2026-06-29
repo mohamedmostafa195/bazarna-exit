@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -8,17 +8,33 @@ import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import {
+  getEntranceImage,
+  getEntranceLabel,
+  type EntranceType,
+} from "@/lib/entrance";
 
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [entrance, setEntrance] = useState<EntranceType | null>(null);
   const [form, setForm] = useState({ email: "", password: "" });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    fetch("/api/entrance")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.entranceType) {
+          router.replace("/");
+          return;
+        }
+        setEntrance(data.entranceType);
+      });
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setErrors({});
 
     const result = await signIn("credentials", {
       email: form.email,
@@ -38,21 +54,35 @@ export default function LoginPage() {
     router.refresh();
   }
 
+  if (!entrance) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 dark:bg-zinc-950">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Image
-            src="/image/LogoBazarna.jpg"
-            alt="Bazarna"
+            src={getEntranceImage(entrance)}
+            alt={getEntranceLabel(entrance)}
             width={64}
             height={64}
-            className="mx-auto rounded-xl"
+            className="mx-auto rounded-xl object-cover"
           />
           <h1 className="mt-4 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-            Bazarna Exit Queue
+            {getEntranceLabel(entrance)} Exit Queue
           </h1>
           <p className="mt-1 text-sm text-zinc-500">Sign in to your account</p>
+          <Link
+            href="/"
+            className="mt-2 inline-block text-xs text-orange-600 hover:underline dark:text-orange-400"
+          >
+            Change entrance
+          </Link>
         </div>
 
         <form
@@ -65,7 +95,6 @@ export default function LoginPage() {
               type="email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
-              error={errors.email}
               required
             />
             <Input
@@ -73,7 +102,6 @@ export default function LoginPage() {
               type="password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
-              error={errors.password}
               required
             />
           </div>

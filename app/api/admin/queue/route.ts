@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { getActiveEvent, getQueueStats } from "@/lib/queue";
+import { getEntranceFromRequest } from "@/lib/entrance-server";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(request: Request) {
   const { error } = await requireAdmin();
@@ -8,16 +10,15 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const eventId = searchParams.get("eventId");
+  const entranceType = getEntranceFromRequest(request) ?? "BAZARNA";
   const status = searchParams.get("status");
   const search = searchParams.get("search") ?? "";
   const page = parseInt(searchParams.get("page") ?? "1", 10);
   const limit = parseInt(searchParams.get("limit") ?? "20", 10);
 
   const event = eventId
-    ? await import("@/lib/prisma").then(({ prisma }) =>
-        prisma.event.findUnique({ where: { id: eventId } })
-      )
-    : await getActiveEvent();
+    ? await prisma.event.findUnique({ where: { id: eventId } })
+    : await getActiveEvent(entranceType);
 
   if (!event) {
     return NextResponse.json({ error: "No event found" }, { status: 404 });
@@ -49,6 +50,7 @@ export async function GET(request: Request) {
     event: {
       id: event.id,
       eventName: event.eventName,
+      entranceType: event.entranceType,
       queueOpenTime: event.queueOpenTime,
       queueCloseTime: event.queueCloseTime,
       currentServingNumber: event.currentServingNumber,

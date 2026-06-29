@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { useSocket } from "@/hooks/use-socket";
 import { Users, CheckCircle, Clock, ListOrdered } from "lucide-react";
 import Link from "next/link";
+import { EntranceTabs } from "@/components/entrance-tabs";
+import { getEntranceLabel, type EntranceType } from "@/lib/entrance";
 
 interface DashboardStats {
   event: {
@@ -28,18 +30,28 @@ interface DashboardStats {
 export default function AdminDashboardPage() {
   const [data, setData] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [entrance, setEntrance] = useState<EntranceType>("BAZARNA");
 
   const fetchData = useCallback(async () => {
-    const res = await fetch("/api/admin/dashboard");
+    const res = await fetch(`/api/admin/dashboard?entrance=${entrance}`);
     if (res.ok) setData(await res.json());
     setLoading(false);
+  }, [entrance]);
+
+  useEffect(() => {
+    fetch("/api/entrance")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.entranceType) setEntrance(d.entranceType);
+      });
   }, []);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const { lastUpdate } = useSocket(data?.event?.id ?? null);
+  const pollUrl = `/api/admin/dashboard?entrance=${entrance}`;
+  const { lastUpdate } = useSocket(data?.event?.id ?? null, pollUrl);
 
   useEffect(() => {
     if (lastUpdate) fetchData();
@@ -64,18 +76,31 @@ export default function AdminDashboardPage() {
           <div>
             <h1 className="text-2xl font-bold">Admin Dashboard</h1>
             <p className="text-zinc-500">
-              {data?.event?.eventName ?? "No active event"}
+              {data?.event?.eventName ?? `No active ${getEntranceLabel(entrance)} event`}
             </p>
           </div>
           <div className="flex gap-2">
             <Link href="/admin/queue">
               <Button variant="outline">Manage Queue</Button>
             </Link>
-            <Link href="/display-screen" target="_blank">
+            <Link href={`/display-screen?entrance=${entrance}`} target="_blank">
               <Button variant="secondary">Open Display</Button>
             </Link>
           </div>
         </div>
+
+        <EntranceTabs
+          value={entrance}
+          onChange={(type) => {
+            setEntrance(type);
+            fetch("/api/entrance", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ entranceType: type }),
+            });
+          }}
+          className="mb-6 max-w-md"
+        />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>

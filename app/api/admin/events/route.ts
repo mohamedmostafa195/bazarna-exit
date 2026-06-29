@@ -38,11 +38,15 @@ export async function POST(request: Request) {
   const queueCloseTime = new Date(eventDate);
   queueCloseTime.setHours(closeH, closeM, 0, 0);
 
-  await prisma.event.updateMany({ data: { isActive: false } });
+  await prisma.event.updateMany({
+    where: { entranceType: parsed.data.entranceType },
+    data: { isActive: false },
+  });
 
   const event = await prisma.event.create({
     data: {
       eventName: parsed.data.eventName,
+      entranceType: parsed.data.entranceType,
       eventDate,
       queueOpenTime,
       queueCloseTime,
@@ -86,6 +90,7 @@ export async function PUT(request: Request) {
     where: { id: eventId },
     data: {
       eventName: parsed.data.eventName,
+      entranceType: parsed.data.entranceType,
       eventDate,
       queueOpenTime,
       queueCloseTime,

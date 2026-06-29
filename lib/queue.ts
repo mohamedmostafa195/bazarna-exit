@@ -4,9 +4,12 @@ import { randomBytes } from "crypto";
 
 type TicketStatus = "WAITING" | "CALLED" | "COMPLETED";
 
-export async function getActiveEvent() {
+export async function getActiveEvent(entranceType?: string | null) {
   return prisma.event.findFirst({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      ...(entranceType ? { entranceType } : {}),
+    },
     orderBy: { eventDate: "desc" },
   });
 }

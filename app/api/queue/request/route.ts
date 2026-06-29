@@ -3,12 +3,26 @@ import { requireBrand } from "@/lib/auth-helpers";
 import { getActiveEvent, requestQueueNumber } from "@/lib/queue";
 import { getQueueWindowState, getTicketUrl } from "@/lib/utils";
 import { sendQueueConfirmationEmail } from "@/lib/email";
+import { resolveEntranceType } from "@/lib/entrance-server";
+import { prisma } from "@/lib/prisma";
 
-export async function POST() {
+export async function POST(request: Request) {
   const { session, error } = await requireBrand();
   if (error) return error;
 
-  const event = await getActiveEvent();
+  const entranceType = await resolveEntranceType(
+    request,
+    session!.user.entranceType
+  );
+
+  if (!entranceType) {
+    return NextResponse.json(
+      { error: "Please select Bazarna or Byouth entrance first" },
+      { status: 400 }
+    );
+  }
+
+  const event = await getActiveEvent(entranceType);
   if (!event) {
     return NextResponse.json({ error: "No active event" }, { status: 404 });
   }
@@ -40,12 +54,10 @@ export async function POST() {
   const ticket = result.ticket!;
   const ticketUrl = getTicketUrl(ticket.qrToken);
 
-  const user = await import("@/lib/prisma").then(({ prisma }) =>
-    prisma.user.findUnique({ where: { id: ticket.userId } })
-  );
-  const eventRecord = await import("@/lib/prisma").then(({ prisma }) =>
-    prisma.event.findUnique({ where: { id: ticket.eventId } })
-  );
+  const user = await prisma.user.findUnique({ where: { id: ticket.userId } });
+  const eventRecord = await prisma.event.findUnique({
+    where: { id: ticket.eventId },
+  });
 
   await sendQueueConfirmationEmail({
     to: session!.user.email!,

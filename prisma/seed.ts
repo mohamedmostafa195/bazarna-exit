@@ -26,9 +26,22 @@ async function main() {
   closeTime.setHours(23, 0, 0, 0);
 
   await prisma.event.deleteMany({});
-  const event = await prisma.event.create({
+
+  const bazarnaEvent = await prisma.event.create({
     data: {
       eventName: "Bazarna Summer Market 2026",
+      entranceType: "BAZARNA",
+      eventDate: today,
+      queueOpenTime: openTime,
+      queueCloseTime: closeTime,
+      isActive: true,
+    },
+  });
+
+  const byouthEvent = await prisma.event.create({
+    data: {
+      eventName: "Byouth Festival 2026",
+      entranceType: "BYOUTH",
       eventDate: today,
       queueOpenTime: openTime,
       queueCloseTime: closeTime,
@@ -47,13 +60,15 @@ async function main() {
       representativeName: "Jane Doe",
       boothNumber: "B42",
       role: "BRAND",
+      entranceType: "BAZARNA",
     },
   });
 
   console.log("Seed complete!");
   console.log("Admin:", admin.email, "/ admin123456");
   console.log("Brand: brand@example.com / brand123456");
-  console.log("Event:", event.eventName);
+  console.log("Bazarna event:", bazarnaEvent.eventName);
+  console.log("Byouth event:", byouthEvent.eventName);
 }
 
 main()

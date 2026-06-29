@@ -27,6 +27,7 @@ interface QueueData {
     qrToken: string;
     requestedAt: string;
   } | null;
+  entranceLabel?: string;
   user: { brandName: string; boothNumber: string };
 }
 
@@ -50,7 +51,10 @@ export default function DashboardPage() {
     fetchStatus();
   }, [fetchStatus]);
 
-  const { lastUpdate } = useSocket(data?.event?.id ?? null);
+  const { lastUpdate } = useSocket(
+    data?.event?.id ?? null,
+    "/api/queue/status"
+  );
 
   useEffect(() => {
     if (lastUpdate) {
@@ -118,6 +122,7 @@ export default function DashboardPage() {
           </h1>
           <p className="text-zinc-500">
             Booth {data?.user.boothNumber}
+            {data?.entranceLabel && ` · ${data.entranceLabel}`}
             {data?.event && ` · ${data.event.eventName}`}
           </p>
         </div>

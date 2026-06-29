@@ -7,6 +7,7 @@ declare module "next-auth" {
       role: string;
       brandName: string;
       boothNumber: string;
+      entranceType: string | null;
     } & DefaultSession["user"];
   }
 
@@ -14,6 +15,7 @@ declare module "next-auth" {
     role: string;
     brandName: string;
     boothNumber: string;
+    entranceType: string | null;
   }
 }
 
@@ -23,5 +25,6 @@ declare module "next-auth/jwt" {
     role: string;
     brandName: string;
     boothNumber: string;
+    entranceType: string | null;
   }
 }

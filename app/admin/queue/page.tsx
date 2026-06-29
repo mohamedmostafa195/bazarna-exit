@@ -9,6 +9,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { useSocket } from "@/hooks/use-socket";
 import { formatTime } from "@/lib/utils";
 import { toast } from "sonner";
+import { EntranceTabs } from "@/components/entrance-tabs";
+import { type EntranceType } from "@/lib/entrance";
 import {
   PhoneForwarded,
   SkipForward,
@@ -40,6 +42,7 @@ export default function AdminQueuePage() {
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [recallNumber, setRecallNumber] = useState("");
+  const [entrance, setEntrance] = useState<EntranceType>("BAZARNA");
 
   const fetchQueue = useCallback(async () => {
     const params = new URLSearchParams({
@@ -47,6 +50,7 @@ export default function AdminQueuePage() {
       limit: "20",
       search,
       status: statusFilter,
+      entrance,
     });
     const res = await fetch(`/api/admin/queue?${params}`);
     if (res.ok) {
@@ -56,13 +60,22 @@ export default function AdminQueuePage() {
       setPagination(json.pagination);
     }
     setLoading(false);
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, entrance]);
+
+  useEffect(() => {
+    fetch("/api/entrance")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.entranceType) setEntrance(data.entranceType);
+      });
+  }, []);
 
   useEffect(() => {
     fetchQueue();
   }, [fetchQueue]);
 
-  const { lastUpdate } = useSocket(eventId);
+  const pollUrl = `/api/admin/queue?entrance=${entrance}`;
+  const { lastUpdate } = useSocket(eventId, pollUrl);
 
   useEffect(() => {
     if (lastUpdate) fetchQueue();
@@ -74,7 +87,7 @@ export default function AdminQueuePage() {
     label?: string
   ) {
     setActionLoading(endpoint);
-    const res = await fetch(endpoint, {
+    const res = await fetch(`${endpoint}?entrance=${entrance}`, {
       method: "POST",
       headers: body ? { "Content-Type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
@@ -104,7 +117,21 @@ export default function AdminQueuePage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-7xl px-4 py-8">
-        <h1 className="mb-6 text-2xl font-bold">Queue Management</h1>
+        <h1 className="mb-4 text-2xl font-bold">Queue Management</h1>
+
+        <EntranceTabs
+          value={entrance}
+          onChange={(type) => {
+            setEntrance(type);
+            setPage(1);
+            fetch("/api/entrance", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ entranceType: type }),
+            });
+          }}
+          className="mb-6 max-w-md"
+        />
 
         <div className="mb-6 flex flex-wrap gap-2">
           <Button

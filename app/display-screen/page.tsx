@@ -1,28 +1,43 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { useSocket } from "@/hooks/use-socket";
+import {
+  getEntranceImage,
+  getEntranceLabel,
+  isEntranceType,
+  type EntranceType,
+} from "@/lib/entrance";
 
 interface DisplayData {
-  event: { id: string; eventName: string } | null;
+  event: { id: string; eventName: string; entranceType?: string } | null;
   currentServing: number | null;
   upcoming: number[];
+  entranceType?: EntranceType;
 }
 
-export default function DisplayScreenPage() {
+function DisplayContent() {
+  const searchParams = useSearchParams();
+  const entranceParam = searchParams.get("entrance");
+  const entrance: EntranceType = isEntranceType(entranceParam)
+    ? entranceParam
+    : "BAZARNA";
+
   const [data, setData] = useState<DisplayData | null>(null);
+  const pollUrl = `/api/display?entrance=${entrance}`;
 
   const fetchDisplay = useCallback(async () => {
-    const res = await fetch("/api/display");
+    const res = await fetch(pollUrl);
     if (res.ok) setData(await res.json());
-  }, []);
+  }, [pollUrl]);
 
   useEffect(() => {
     fetchDisplay();
   }, [fetchDisplay]);
 
-  const { lastUpdate } = useSocket(data?.event?.id ?? null);
+  const { lastUpdate } = useSocket(data?.event?.id ?? null, pollUrl);
 
   useEffect(() => {
     if (lastUpdate) {
@@ -41,15 +56,15 @@ export default function DisplayScreenPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-8 py-12 text-white">
       <Image
-        src="/image/LogoBazarna.jpg"
-        alt="Bazarna"
+        src={getEntranceImage(entrance)}
+        alt={getEntranceLabel(entrance)}
         width={80}
         height={80}
-        className="mb-6 rounded-xl"
+        className="mb-6 rounded-xl object-cover"
       />
 
       <p className="text-xl text-zinc-400">
-        {data?.event?.eventName ?? "Bazarna Exit Queue"}
+        {data?.event?.eventName ?? `${getEntranceLabel(entrance)} Exit Queue`}
       </p>
 
       <div className="mt-12 text-center">
@@ -81,5 +96,19 @@ export default function DisplayScreenPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DisplayScreenPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-zinc-950 text-white">
+          Loading...
+        </div>
+      }
+    >
+      <DisplayContent />
+    </Suspense>
   );
 }

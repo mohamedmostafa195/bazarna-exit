@@ -1,14 +1,21 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { getActiveEvent, getQueueStats } from "@/lib/queue";
+import { getEntranceFromRequest } from "@/lib/entrance-server";
 
-export async function GET() {
+export async function GET(request: Request) {
   const { error } = await requireAdmin();
   if (error) return error;
 
-  const event = await getActiveEvent();
+  const entranceType = getEntranceFromRequest(request) ?? "BAZARNA";
+  const event = await getActiveEvent(entranceType);
+
   if (!event) {
-    return NextResponse.json({ event: null, stats: null });
+    return NextResponse.json({
+      event: null,
+      stats: null,
+      entranceType,
+    });
   }
 
   const stats = await getQueueStats(event.id);
@@ -17,6 +24,7 @@ export async function GET() {
     event: {
       id: event.id,
       eventName: event.eventName,
+      entranceType: event.entranceType,
       queueOpenTime: event.queueOpenTime,
       queueCloseTime: event.queueCloseTime,
       eventDate: event.eventDate,
@@ -29,5 +37,6 @@ export async function GET() {
       totalCompleted: stats.totalCompleted,
       total: stats.tickets.length,
     },
+    entranceType,
   });
 }
