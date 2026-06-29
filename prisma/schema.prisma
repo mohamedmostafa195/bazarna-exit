@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String        @id @default(cuid())
+  brandName          String        @map("brand_name")
+  representativeName String        @map("representative_name")
+  boothNumber        String        @map("booth_number")
+  email              String        @unique
+  password           String
+  role               String        @default("BRAND")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  tickets            QueueTicket[]
+
+  @@map("users")
+}
+
+model Event {
+  id                   String        @id @default(cuid())
+  eventName            String        @map("event_name")
+  queueOpenTime        DateTime      @map("queue_open_time")
+  queueCloseTime       DateTime      @map("queue_close_time")
+  eventDate            DateTime      @map("event_date")
+  isActive             Boolean       @default(true) @map("is_active")
+  currentServingNumber Int?          @map("current_serving_number")
+  tickets              QueueTicket[]
+
+  @@map("events")
+}
+
+model QueueTicket {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  eventId     String   @map("event_id")
+  queueNumber Int      @map("queue_number")
+  status      String   @default("WAITING")
+  qrToken     String   @unique @map("qr_token")
+  requestedAt DateTime @default(now()) @map("requested_at")
+  calledAt    DateTime? @map("called_at")
+  completedAt DateTime? @map("completed_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@unique([eventId, queueNumber])
+  @@map("queue_tickets")
+}
