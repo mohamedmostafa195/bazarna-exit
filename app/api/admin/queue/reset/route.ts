@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { getActiveEvent, resetQueue } from "@/lib/queue";
-
+import { logAction } from "@/lib/action-log";
 import { getEntranceFromRequest } from "@/lib/entrance-server";
 
 export async function POST(request: Request) {
-  const { error } = await requireAdmin();
+  const { session, error } = await requireAdmin();
   if (error) return error;
 
   const entranceType = getEntranceFromRequest(request) ?? "BAZARNA";
@@ -15,5 +15,14 @@ export async function POST(request: Request) {
   }
 
   await resetQueue(event.id);
+
+  await logAction({
+    action: "QUEUE_RESET",
+    entranceType: event.entranceType,
+    eventId: event.id,
+    actorName: session!.user.name ?? session!.user.email,
+    details: `Reset queue for ${event.eventName}`,
+  });
+
   return NextResponse.json({ success: true });
 }

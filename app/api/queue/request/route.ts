@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireBrand } from "@/lib/auth-helpers";
 import { getActiveEvent, requestQueueNumber } from "@/lib/queue";
+import { logAction } from "@/lib/action-log";
 import { getQueueWindowState, getTicketUrl } from "@/lib/utils";
 import { sendQueueConfirmationEmail } from "@/lib/email";
 import { resolveEntranceType } from "@/lib/entrance-server";
@@ -69,6 +70,15 @@ export async function POST(request: Request) {
       ? getEntranceLabel(event.entranceType)
       : "Exit",
     ticketUrl,
+  });
+
+  await logAction({
+    action: "QUEUE_REQUESTED",
+    entranceType: event.entranceType,
+    eventId: event.id,
+    brandName: user?.brandName ?? session!.user.brandName,
+    queueNumber: ticket.queueNumber,
+    details: `Requested #${ticket.queueNumber} — ${user?.brandName ?? session!.user.brandName}`,
   });
 
   return NextResponse.json({

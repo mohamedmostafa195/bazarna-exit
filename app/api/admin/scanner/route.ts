@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
-import { getActiveEvent, markCompleted } from "@/lib/queue";
+import { markCompleted } from "@/lib/queue";
+import { logAction } from "@/lib/action-log";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
-  const { error } = await requireAdmin();
+  const { session, error } = await requireAdmin();
   if (error) return error;
 
   const body = await request.json();
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
       user: {
         select: { brandName: true, boothNumber: true },
       },
-      event: { select: { id: true, eventName: true } },
+      event: { select: { id: true, eventName: true, entranceType: true } },
     },
   });
 
@@ -46,6 +47,16 @@ export async function POST(request: Request) {
   if (result.error && !result.alreadyCompleted) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
+
+  await logAction({
+    action: "CHECKOUT",
+    entranceType: ticket.event.entranceType,
+    eventId: ticket.event.id,
+    actorName: session!.user.name ?? session!.user.email,
+    brandName: ticket.user.brandName,
+    queueNumber: ticket.queueNumber,
+    details: `Checked out #${ticket.queueNumber} — ${ticket.user.brandName}`,
+  });
 
   return NextResponse.json({
     success: true,

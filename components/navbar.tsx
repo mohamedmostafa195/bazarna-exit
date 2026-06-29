@@ -12,6 +12,7 @@ import {
   ScanLine,
   ListOrdered,
   LogOut,
+  Activity,
 } from "lucide-react";
 
 const brandLinks = [
@@ -21,6 +22,7 @@ const brandLinks = [
 const adminLinks = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/queue", label: "Queue", icon: ListOrdered },
+  { href: "/admin/actions", label: "Activity", icon: Activity },
   { href: "/admin/scanner", label: "Scanner", icon: ScanLine },
   { href: "/display-screen", label: "Display", icon: Monitor },
   { href: "/settings", label: "Settings", icon: Settings },

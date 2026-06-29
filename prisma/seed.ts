@@ -19,6 +19,20 @@ async function main() {
     },
   });
 
+  const yassminePassword = await bcrypt.hash("yassminePassword", 12);
+  const yassmineAdmin = await prisma.user.upsert({
+    where: { email: "yassmine@Bazarna.com" },
+    update: { password: yassminePassword, role: "ADMIN" },
+    create: {
+      email: "yassmine@Bazarna.com",
+      password: yassminePassword,
+      brandName: "Bazarna",
+      representativeName: "Yassmine",
+      boothNumber: "N/A",
+      role: "ADMIN",
+    },
+  });
+
   const today = new Date();
   const openTime = new Date(today);
   openTime.setHours(9, 0, 0, 0);
@@ -66,6 +80,7 @@ async function main() {
 
   console.log("Seed complete!");
   console.log("Admin:", admin.email, "/ admin123456");
+  console.log("Admin:", yassmineAdmin.email, "/ yassminePassword");
   console.log("Brand: brand@example.com / brand123456");
   console.log("Bazarna event:", bazarnaEvent.eventName);
   console.log("Byouth event:", byouthEvent.eventName);

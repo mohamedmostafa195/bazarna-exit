@@ -53,3 +53,17 @@ model QueueTicket {
   @@unique([eventId, queueNumber])
   @@map("queue_tickets")
 }
+
+model ActionLog {
+  id           String   @id @default(cuid())
+  action       String
+  entranceType String?  @map("entrance_type")
+  eventId      String?  @map("event_id")
+  actorName    String?  @map("actor_name")
+  brandName    String?  @map("brand_name")
+  queueNumber  Int?     @map("queue_number")
+  details      String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("action_logs")
+}
