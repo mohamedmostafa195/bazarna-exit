@@ -1,22 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import {
-  getEntranceImage,
-  getEntranceLabel,
-  type EntranceType,
-} from "@/lib/entrance";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [entrance, setEntrance] = useState<EntranceType | null>(null);
   const [form, setForm] = useState({
     brandName: "",
     representativeName: "",
@@ -25,27 +19,14 @@ export default function RegisterPage() {
     password: "",
   });
 
-  useEffect(() => {
-    fetch("/api/entrance")
-      .then((r) => r.json())
-      .then((data) => {
-        if (!data.entranceType) {
-          router.replace("/");
-          return;
-        }
-        setEntrance(data.entranceType);
-      });
-  }, [router]);
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!entrance) return;
     setLoading(true);
 
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, entranceType: entrance }),
+      body: JSON.stringify(form),
     });
 
     const data = await res.json();
@@ -60,37 +41,23 @@ export default function RegisterPage() {
     router.push("/login");
   }
 
-  if (!entrance) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
-      </div>
-    );
-  }
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-12 dark:bg-zinc-950">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Image
-            src={getEntranceImage(entrance)}
-            alt={getEntranceLabel(entrance)}
+            src="/image/LogoBazarna.jpg"
+            alt="Bazarna"
             width={64}
             height={64}
-            className="mx-auto rounded-xl object-cover"
+            className="mx-auto rounded-xl"
           />
           <h1 className="mt-4 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-            {getEntranceLabel(entrance)} Registration
+            Brand Registration
           </h1>
           <p className="mt-1 text-sm text-zinc-500">
             Register your brand for the exit queue
           </p>
-          <Link
-            href="/"
-            className="mt-2 inline-block text-xs text-orange-600 hover:underline dark:text-orange-400"
-          >
-            Change entrance
-          </Link>
         </div>
 
         <form

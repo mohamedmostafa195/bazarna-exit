@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -14,6 +15,7 @@ import { cn } from "@/lib/utils";
 
 export function EntranceSelector() {
   const router = useRouter();
+  const { data: session, update } = useSession();
   const [loading, setLoading] = useState<EntranceType | null>(null);
 
   async function selectEntrance(entranceType: EntranceType) {
@@ -30,7 +32,11 @@ export function EntranceSelector() {
       return;
     }
 
-    router.push("/login");
+    await update({ entranceType });
+
+    const isAdmin = session?.user?.role === "ADMIN";
+    router.push(isAdmin ? "/admin/dashboard" : "/dashboard");
+    router.refresh();
   }
 
   const options: EntranceType[] = ["BAZARNA", "BYOUTH"];
@@ -38,11 +44,18 @@ export function EntranceSelector() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 px-4 py-12 dark:bg-zinc-950">
       <div className="w-full max-w-2xl text-center">
-        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
-          Welcome to Bazarna
+        <Image
+          src="/image/LogoBazarna.jpg"
+          alt="Bazarna"
+          width={64}
+          height={64}
+          className="mx-auto rounded-xl"
+        />
+        <h1 className="mt-4 text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+          Select Your Entrance
         </h1>
         <p className="mt-2 text-zinc-500">
-          Select your entrance to continue to the exit queue
+          Choose Bazarna or Byouth to enter the exit queue
         </p>
 
         <div className="mt-10 grid gap-6 sm:grid-cols-2">
@@ -71,7 +84,7 @@ export function EntranceSelector() {
                 {getEntranceDescription(type)}
               </p>
               <span className="mt-6 inline-block text-sm font-medium text-orange-600 group-hover:underline dark:text-orange-400">
-                {loading === type ? "Loading..." : "Enter →"}
+                {loading === type ? "Loading..." : "Continue →"}
               </span>
             </button>
           ))}

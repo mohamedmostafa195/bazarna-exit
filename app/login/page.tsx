@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -8,29 +8,11 @@ import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import {
-  getEntranceImage,
-  getEntranceLabel,
-  type EntranceType,
-} from "@/lib/entrance";
 
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [entrance, setEntrance] = useState<EntranceType | null>(null);
   const [form, setForm] = useState({ email: "", password: "" });
-
-  useEffect(() => {
-    fetch("/api/entrance")
-      .then((r) => r.json())
-      .then((data) => {
-        if (!data.entranceType) {
-          router.replace("/");
-          return;
-        }
-        setEntrance(data.entranceType);
-      });
-  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -50,16 +32,8 @@ export default function LoginPage() {
     }
 
     toast.success("Welcome back!");
-    router.push("/");
+    router.push("/select-entrance");
     router.refresh();
-  }
-
-  if (!entrance) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
-      </div>
-    );
   }
 
   return (
@@ -67,22 +41,16 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Image
-            src={getEntranceImage(entrance)}
-            alt={getEntranceLabel(entrance)}
+            src="/image/LogoBazarna.jpg"
+            alt="Bazarna"
             width={64}
             height={64}
-            className="mx-auto rounded-xl object-cover"
+            className="mx-auto rounded-xl"
           />
           <h1 className="mt-4 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-            {getEntranceLabel(entrance)} Exit Queue
+            Bazarna Exit Queue
           </h1>
           <p className="mt-1 text-sm text-zinc-500">Sign in to your account</p>
-          <Link
-            href="/"
-            className="mt-2 inline-block text-xs text-orange-600 hover:underline dark:text-orange-400"
-          >
-            Change entrance
-          </Link>
         </div>
 
         <form
