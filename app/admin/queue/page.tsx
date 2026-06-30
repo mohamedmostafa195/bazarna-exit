@@ -4,21 +4,13 @@ import { useEffect, useState, useCallback } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useSocket } from "@/hooks/use-socket";
 import { formatTime } from "@/lib/utils";
 import { toast } from "sonner";
 import { EntranceTabs } from "@/components/entrance-tabs";
 import { type EntranceType } from "@/lib/entrance";
-import {
-  PhoneForwarded,
-  SkipForward,
-  RotateCcw,
-  CheckCircle,
-  Trash2,
-  Search,
-} from "lucide-react";
+import { CheckCircle, Trash2, Search } from "lucide-react";
 
 interface Ticket {
   id: string;
@@ -41,7 +33,6 @@ export default function AdminQueuePage() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [recallNumber, setRecallNumber] = useState("");
   const [entrance, setEntrance] = useState<EntranceType>("BAZARNA");
 
   const fetchQueue = useCallback(async () => {
@@ -134,44 +125,6 @@ export default function AdminQueuePage() {
         />
 
         <div className="mb-6 flex flex-wrap gap-2">
-          <Button
-            onClick={() => adminAction("/api/admin/queue/call-next", undefined, "Called next number")}
-            loading={actionLoading === "/api/admin/queue/call-next"}
-          >
-            <PhoneForwarded className="h-4 w-4" />
-            Call Next
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => adminAction("/api/admin/queue/skip", undefined, "Skipped current")}
-            loading={actionLoading === "/api/admin/queue/skip"}
-          >
-            <SkipForward className="h-4 w-4" />
-            Skip
-          </Button>
-          <div className="flex items-center gap-2">
-            <Input
-              placeholder="Recall #"
-              value={recallNumber}
-              onChange={(e) => setRecallNumber(e.target.value)}
-              className="w-24"
-            />
-            <Button
-              variant="outline"
-              onClick={() =>
-                adminAction(
-                  "/api/admin/queue/recall",
-                  { queueNumber: recallNumber },
-                  `Recalled #${recallNumber}`
-                )
-              }
-              loading={actionLoading === "/api/admin/queue/recall"}
-              disabled={!recallNumber}
-            >
-              <RotateCcw className="h-4 w-4" />
-              Recall
-            </Button>
-          </div>
           <Button
             variant="danger"
             onClick={() => {

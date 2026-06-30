@@ -24,13 +24,23 @@ export interface LogActionParams {
 }
 
 const ACTION_LABELS: Record<ActionType, string> = {
-  QUEUE_REQUESTED: "Queue number requested",
-  CALL_NEXT: "Called next number",
-  SKIP: "Skipped number",
-  RECALL: "Recalled number",
-  COMPLETED: "Marked completed",
-  CHECKOUT: "Checked out (scanner)",
+  QUEUE_REQUESTED: "New queue number",
+  CALL_NEXT: "Called next",
+  SKIP: "Skipped",
+  RECALL: "Recalled",
+  COMPLETED: "Completed",
+  CHECKOUT: "Checked out",
   QUEUE_RESET: "Queue reset",
+};
+
+export const ACTION_DESCRIPTIONS: Record<ActionType, string> = {
+  QUEUE_REQUESTED: "A brand requested a queue number",
+  CALL_NEXT: "Call the next waiting brand to the exit",
+  SKIP: "Skip the current number and call the next one",
+  RECALL: "Call a specific number again (brand missed their turn)",
+  COMPLETED: "Brand finished exit checkout",
+  CHECKOUT: "Brand checked out via QR scanner",
+  QUEUE_RESET: "All queue numbers were cleared",
 };
 
 const ACTION_COLORS: Record<ActionType, string> = {
@@ -49,6 +59,40 @@ export function getActionLabel(action: string): string {
 
 export function getActionColor(action: string): string {
   return ACTION_COLORS[action as ActionType] ?? "bg-zinc-100 text-zinc-800";
+}
+
+export function getActionSummary(log: {
+  action: string;
+  brandName?: string | null;
+  queueNumber?: number | null;
+  actorName?: string | null;
+  details?: string | null;
+}): string {
+  if (log.details) return log.details;
+
+  const brand = log.brandName ? ` — ${log.brandName}` : "";
+  const num = log.queueNumber != null ? `#${log.queueNumber}` : "";
+
+  switch (log.action as ActionType) {
+    case "QUEUE_REQUESTED":
+      return `${log.brandName ?? "Brand"} got ${num}`;
+    case "CALL_NEXT":
+      return `Called ${num}${brand}`;
+    case "SKIP":
+      return `Skipped ${num}${brand}`;
+    case "RECALL":
+      return `Recalled ${num}${brand}`;
+    case "COMPLETED":
+      return `Completed ${num}${brand}`;
+    case "CHECKOUT":
+      return `Checked out ${num}${brand}`;
+    case "QUEUE_RESET":
+      return log.actorName
+        ? `${log.actorName} reset the queue`
+        : "Queue was reset";
+    default:
+      return getActionLabel(log.action);
+  }
 }
 
 export async function logAction(params: LogActionParams) {

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, Suspense } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useSocket } from "@/hooks/use-socket";
+import { formatTime } from "@/lib/utils";
 import {
   getEntranceImage,
   getEntranceLabel,
@@ -14,7 +15,11 @@ import {
 interface DisplayData {
   event: { id: string; eventName: string; entranceType?: string } | null;
   currentServing: number | null;
+  currentBrand: string | null;
+  currentBooth: string | null;
   upcoming: number[];
+  totalWaiting?: number;
+  totalCompleted?: number;
   entranceType?: EntranceType;
 }
 
@@ -26,78 +31,144 @@ function DisplayContent() {
     : "BAZARNA";
 
   const [data, setData] = useState<DisplayData | null>(null);
+  const [clock, setClock] = useState("");
+  const [pulse, setPulse] = useState(false);
   const pollUrl = `/api/display?entrance=${entrance}`;
+
+  const accent =
+    entrance === "BAZARNA"
+      ? "from-orange-600 to-amber-500"
+      : "from-violet-600 to-fuchsia-500";
 
   const fetchDisplay = useCallback(async () => {
     const res = await fetch(pollUrl);
-    if (res.ok) setData(await res.json());
+    if (res.ok) {
+      const json = await res.json();
+      setData((prev) => {
+        if (prev?.currentServing !== json.currentServing && json.currentServing) {
+          setPulse(true);
+          setTimeout(() => setPulse(false), 1200);
+        }
+        return json;
+      });
+    }
   }, [pollUrl]);
 
   useEffect(() => {
     fetchDisplay();
   }, [fetchDisplay]);
 
+  useEffect(() => {
+    const tick = () => setClock(formatTime(new Date()));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
   const { lastUpdate } = useSocket(data?.event?.id ?? null, pollUrl);
 
   useEffect(() => {
-    if (lastUpdate) {
-      setData((prev) =>
-        prev
-          ? {
-              ...prev,
-              currentServing: lastUpdate.currentServing,
-              upcoming: lastUpdate.upcoming,
-            }
-          : prev
-      );
-    }
-  }, [lastUpdate]);
+    if (lastUpdate) fetchDisplay();
+  }, [lastUpdate, fetchDisplay]);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-8 py-12 text-white">
-      <Image
-        src={getEntranceImage(entrance)}
-        alt={getEntranceLabel(entrance)}
-        width={80}
-        height={80}
-        className="mb-6 rounded-xl object-cover"
-      />
-
-      <p className="text-3xl font-bold text-white">
-        {getEntranceLabel(entrance)} Exit
-      </p>
-      <p className="mt-1 text-lg text-zinc-500">
-        {data?.event?.eventName ?? "Separate queue — not shared with the other exit"}
-      </p>
-
-      <div className="mt-12 text-center">
-        <p className="text-2xl font-medium uppercase tracking-widest text-orange-400">
-          {getEntranceLabel(entrance)} — Now Serving
-        </p>
-        <p className="mt-4 text-[12rem] font-bold leading-none text-white">
-          {data?.currentServing ? `#${data.currentServing}` : "—"}
-        </p>
-      </div>
-
-      <div className="mt-16 w-full max-w-2xl">
-        <p className="mb-6 text-center text-xl font-medium uppercase tracking-widest text-zinc-400">
-          {getEntranceLabel(entrance)} — Upcoming
-        </p>
-        <div className="flex flex-wrap justify-center gap-6">
-          {(data?.upcoming ?? []).length > 0 ? (
-            data!.upcoming.map((num) => (
-              <span
-                key={num}
-                className="rounded-2xl bg-zinc-800 px-8 py-4 text-5xl font-bold"
-              >
-                #{num}
-              </span>
-            ))
-          ) : (
-            <span className="text-2xl text-zinc-500">No upcoming numbers</span>
-          )}
+    <div className="flex min-h-screen flex-col bg-zinc-950 text-white">
+      {/* Header */}
+      <header className="flex items-center justify-between border-b border-zinc-800 px-8 py-5">
+        <div className="flex items-center gap-4">
+          <Image
+            src={getEntranceImage(entrance)}
+            alt={getEntranceLabel(entrance)}
+            width={56}
+            height={56}
+            className="rounded-xl object-cover"
+          />
+          <div>
+            <p className="text-2xl font-bold">{getEntranceLabel(entrance)} Exit</p>
+            <p className="text-sm text-zinc-400">
+              {data?.event?.eventName ?? "Exit queue display"}
+            </p>
+          </div>
         </div>
-      </div>
+        <p className="text-3xl font-light tabular-nums text-zinc-300">{clock}</p>
+      </header>
+
+      {/* Main — Now serving */}
+      <main className="flex flex-1 flex-col items-center justify-center px-8 py-10">
+        <p className="mb-2 text-xl font-semibold uppercase tracking-[0.3em] text-zinc-400">
+          Now Serving
+        </p>
+
+        <div
+          className={`relative transition-transform duration-500 ${pulse ? "scale-105" : "scale-100"}`}
+        >
+          <div
+            className={`absolute -inset-4 rounded-3xl bg-gradient-to-br opacity-20 blur-2xl ${accent}`}
+          />
+          <p
+            className={`relative bg-gradient-to-br bg-clip-text text-[10rem] font-black leading-none tracking-tight text-transparent sm:text-[14rem] ${accent}`}
+          >
+            {data?.currentServing ? `#${data.currentServing}` : "—"}
+          </p>
+        </div>
+
+        {data?.currentBrand ? (
+          <div className="mt-6 text-center">
+            <p className="text-4xl font-bold text-white">{data.currentBrand}</p>
+            {data.currentBooth && (
+              <p className="mt-2 text-2xl text-zinc-400">Booth {data.currentBooth}</p>
+            )}
+            <p className="mt-4 text-lg font-medium text-orange-400">
+              Please proceed to the exit →
+            </p>
+          </div>
+        ) : (
+          <p className="mt-6 text-2xl text-zinc-500">Waiting for next number…</p>
+        )}
+      </main>
+
+      {/* Upcoming */}
+      <section className="border-t border-zinc-800 px-8 py-8">
+        <div className="mx-auto max-w-5xl">
+          <p className="mb-5 text-center text-sm font-semibold uppercase tracking-[0.25em] text-zinc-500">
+            Up Next
+          </p>
+          <div className="flex flex-wrap justify-center gap-4">
+            {(data?.upcoming ?? []).length > 0 ? (
+              data!.upcoming.map((num, i) => (
+                <span
+                  key={num}
+                  className={`rounded-2xl px-8 py-4 text-4xl font-bold ${
+                    i === 0
+                      ? "bg-zinc-700 text-white ring-2 ring-orange-500/50"
+                      : "bg-zinc-800/80 text-zinc-300"
+                  }`}
+                >
+                  #{num}
+                </span>
+              ))
+            ) : (
+              <span className="text-xl text-zinc-600">No one waiting</span>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Footer stats */}
+      <footer className="flex items-center justify-center gap-10 border-t border-zinc-800 py-4 text-sm text-zinc-500">
+        <span>
+          Waiting:{" "}
+          <strong className="text-white">{data?.totalWaiting ?? 0}</strong>
+        </span>
+        <span>
+          Completed:{" "}
+          <strong className="text-white">{data?.totalCompleted ?? 0}</strong>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
+          Live
+        </span>
+      </footer>
     </div>
   );
 }
@@ -107,7 +178,7 @@ export default function DisplayScreenPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center bg-zinc-950 text-white">
-          Loading...
+          Loading display…
         </div>
       }
     >

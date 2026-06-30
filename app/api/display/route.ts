@@ -25,6 +25,8 @@ export async function GET(request: Request) {
     },
     entranceType,
     currentServing: stats.currentServing,
+    currentBrand: stats.calledTicket?.user.brandName ?? null,
+    currentBooth: stats.calledTicket?.user.boothNumber ?? null,
     upcoming: stats.upcoming,
     totalWaiting: stats.totalWaiting,
     totalCompleted: stats.totalCompleted,
