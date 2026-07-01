@@ -47,6 +47,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
   },
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      try {
+        const target = new URL(url);
+        const base = new URL(baseUrl);
+        if (target.origin === base.origin) return url;
+      } catch {
+        /* ignore invalid url */
+      }
+      return `${baseUrl}/login`;
+    },
     async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;

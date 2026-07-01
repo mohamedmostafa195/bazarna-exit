@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import {
@@ -32,6 +32,7 @@ const adminLinks = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
   const links = isAdmin ? adminLinks : brandLinks;
@@ -73,7 +74,9 @@ export function Navbar() {
           <button
             onClick={async () => {
               await fetch("/api/entrance", { method: "DELETE" });
-              signOut({ callbackUrl: "/login" });
+              await signOut({ redirect: false });
+              router.push("/login");
+              router.refresh();
             }}
             className="ml-2 flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
           >
