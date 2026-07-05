@@ -16,12 +16,15 @@ async function resolveUserRole(userId: string, sessionRole?: string | null) {
     return normalized;
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true },
-  });
-
-  return user?.role?.toUpperCase() ?? null;
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    return user?.role?.toUpperCase() ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function requireAdmin() {

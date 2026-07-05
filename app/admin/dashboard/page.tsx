@@ -9,6 +9,7 @@ import { Users, CheckCircle, Clock, ListOrdered } from "lucide-react";
 import Link from "next/link";
 import { EntranceTabs } from "@/components/entrance-tabs";
 import { getEntranceLabel, type EntranceType } from "@/lib/entrance";
+import { fetchApi } from "@/lib/fetch-api";
 
 interface DashboardStats {
   event: {
@@ -33,17 +34,17 @@ export default function AdminDashboardPage() {
   const [entrance, setEntrance] = useState<EntranceType>("BAZARNA");
 
   const fetchData = useCallback(async () => {
-    const res = await fetch(`/api/admin/dashboard?entrance=${entrance}`);
-    if (res.ok) setData(await res.json());
+    const { ok, data } = await fetchApi<DashboardStats>(
+      `/api/admin/dashboard?entrance=${entrance}`
+    );
+    if (ok) setData(data);
     setLoading(false);
   }, [entrance]);
 
   useEffect(() => {
-    fetch("/api/entrance")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.entranceType) setEntrance(d.entranceType);
-      });
+    fetchApi<{ entranceType?: EntranceType }>("/api/entrance").then(({ data }) => {
+      if (data.entranceType) setEntrance(data.entranceType);
+    });
   }, []);
 
   useEffect(() => {

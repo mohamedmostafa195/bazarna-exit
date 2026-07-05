@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { getActiveEvent, getQueueStats } from "@/lib/queue";
 import { getEntranceFromRequest } from "@/lib/entrance-server";
+import { withApiHandler } from "@/lib/api-error";
 
 export async function GET(request: Request) {
-  const { error } = await requireAdmin();
-  if (error) return error;
+  return withApiHandler(async () => {
+    const { error } = await requireAdmin();
+    if (error) return error;
 
   const entranceType = getEntranceFromRequest(request) ?? "BAZARNA";
   const event = await getActiveEvent(entranceType);
@@ -39,4 +41,5 @@ export async function GET(request: Request) {
     },
     entranceType,
   });
+  }, "GET /api/admin/dashboard");
 }

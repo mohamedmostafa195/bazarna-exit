@@ -7,88 +7,92 @@ import { sendQueueConfirmationEmail } from "@/lib/email";
 import { resolveEntranceType } from "@/lib/entrance-server";
 import { prisma } from "@/lib/prisma";
 import { getEntranceLabel, isEntranceType } from "@/lib/entrance";
+import { withApiHandler } from "@/lib/api-error";
 
 export async function POST(request: Request) {
-  const { session, error } = await requireBrand();
-  if (error) return error;
+  return withApiHandler(async () => {
+    const { session, error } = await requireBrand();
+    if (error) return error;
 
-  const entranceType = await resolveEntranceType(
-    request,
-    session!.user.entranceType
-  );
-
-  if (!entranceType) {
-    return NextResponse.json(
-      { error: "Please select Bazarna or Byouth entrance first" },
-      { status: 400 }
+    const entranceType = await resolveEntranceType(
+      request,
+      session!.user.entranceType
     );
-  }
 
-  const event = await getActiveEvent(entranceType);
-  if (!event) {
-    return NextResponse.json({ error: "No active event" }, { status: 404 });
-  }
-
-  const windowState = getQueueWindowState(
-    event.queueOpenTime,
-    event.queueCloseTime
-  );
-
-  if (windowState !== "open") {
-    return NextResponse.json(
-      { error: "Queue is not open" },
-      { status: 403 }
-    );
-  }
-
-  const result = await requestQueueNumber(session!.user.id, event.id);
-
-  if (result.error) {
-    if (result.ticket) {
+    if (!entranceType) {
       return NextResponse.json(
-        { error: result.error, ticket: result.ticket },
-        { status: 409 }
+        { error: "Please select Bazarna or Byouth entrance first" },
+        { status: 400 }
       );
     }
-    return NextResponse.json({ error: result.error }, { status: 400 });
-  }
 
-  const ticket = result.ticket!;
-  const ticketUrl = getTicketUrl(ticket.qrToken);
+    const event = await getActiveEvent(entranceType);
+    if (!event) {
+      return NextResponse.json({ error: "No active event" }, { status: 404 });
+    }
 
-  const user = await prisma.user.findUnique({ where: { id: ticket.userId } });
-  const eventRecord = await prisma.event.findUnique({
-    where: { id: ticket.eventId },
-  });
+    const windowState = getQueueWindowState(
+      event.queueOpenTime,
+      event.queueCloseTime
+    );
 
-  await sendQueueConfirmationEmail({
-    to: session!.user.email!,
-    brandName: user?.brandName ?? session!.user.brandName,
-    queueNumber: ticket.queueNumber,
-    eventName: eventRecord?.eventName ?? event.eventName,
-    entranceLabel: isEntranceType(event.entranceType)
-      ? getEntranceLabel(event.entranceType)
-      : "Exit",
-    ticketUrl,
-  });
+    if (windowState !== "open") {
+      return NextResponse.json({ error: "Queue is not open" }, { status: 403 });
+    }
 
-  await logAction({
-    action: "QUEUE_REQUESTED",
-    entranceType: event.entranceType,
-    eventId: event.id,
-    brandName: user?.brandName ?? session!.user.brandName,
-    queueNumber: ticket.queueNumber,
-    details: `Requested #${ticket.queueNumber} — ${user?.brandName ?? session!.user.brandName}`,
-  });
+    const result = await requestQueueNumber(session!.user.id, event.id);
 
-  return NextResponse.json({
-    ticket: {
-      id: ticket.id,
+    if (result.error) {
+      if (result.ticket) {
+        return NextResponse.json(
+          { error: result.error, ticket: result.ticket },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+
+    const ticket = result.ticket!;
+    const ticketUrl = getTicketUrl(ticket.qrToken);
+
+    const user = await prisma.user.findUnique({ where: { id: ticket.userId } });
+    const eventRecord = await prisma.event.findUnique({
+      where: { id: ticket.eventId },
+    });
+
+    try {
+      await sendQueueConfirmationEmail({
+        to: session!.user.email!,
+        brandName: user?.brandName ?? session!.user.brandName,
+        queueNumber: ticket.queueNumber,
+        eventName: eventRecord?.eventName ?? event.eventName,
+        entranceLabel: isEntranceType(event.entranceType)
+          ? getEntranceLabel(event.entranceType)
+          : "Exit",
+        ticketUrl,
+      });
+    } catch (emailError) {
+      console.error("Email send failed (non-fatal):", emailError);
+    }
+
+    await logAction({
+      action: "QUEUE_REQUESTED",
+      entranceType: event.entranceType,
+      eventId: event.id,
+      brandName: user?.brandName ?? session!.user.brandName,
       queueNumber: ticket.queueNumber,
-      status: ticket.status,
-      qrToken: ticket.qrToken,
-      requestedAt: ticket.requestedAt,
-      ticketUrl,
-    },
-  });
+      details: `Requested #${ticket.queueNumber} — ${user?.brandName ?? session!.user.brandName}`,
+    });
+
+    return NextResponse.json({
+      ticket: {
+        id: ticket.id,
+        queueNumber: ticket.queueNumber,
+        status: ticket.status,
+        qrToken: ticket.qrToken,
+        requestedAt: ticket.requestedAt,
+        ticketUrl,
+      },
+    });
+  }, "POST /api/queue/request");
 }

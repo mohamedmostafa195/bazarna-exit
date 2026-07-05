@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { fetchApi } from "@/lib/fetch-api";
 import {
   LayoutDashboard,
   Settings,
@@ -41,13 +42,7 @@ export function Navbar() {
     setLoggingOut(true);
 
     try {
-      if (session?.user?.role === "BRAND") {
-        await fetch("/api/queue/ticket", {
-          method: "DELETE",
-          credentials: "include",
-        });
-      }
-      await fetch("/api/entrance", { method: "DELETE" });
+      await fetchApi("/api/entrance", { method: "DELETE" });
       await signOut({ redirect: false });
     } finally {
       window.location.href = "/login";
@@ -57,7 +52,13 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-        <Link href={isAdmin ? "/admin/dashboard" : "/dashboard"} className="flex items-center gap-2">
+        <Link
+          href="/"
+          onClick={() => {
+            fetch("/api/entrance", { method: "DELETE" });
+          }}
+          className="flex items-center gap-2"
+        >
           <Image
             src="/image/LogoBazarna.jpg"
             alt="Bazarna"

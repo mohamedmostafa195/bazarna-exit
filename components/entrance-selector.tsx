@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { fetchApi } from "@/lib/fetch-api";
 import {
   type EntranceType,
   getEntranceDescription,
@@ -20,14 +21,14 @@ export function EntranceSelector() {
 
   async function selectEntrance(entranceType: EntranceType) {
     setLoading(entranceType);
-    const res = await fetch("/api/entrance", {
+    const { ok, data } = await fetchApi<{ error?: string }>("/api/entrance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ entranceType }),
     });
 
-    if (!res.ok) {
-      toast.error("Could not save your selection. Please try again.");
+    if (!ok) {
+      toast.error(data.error ?? "Could not save your selection. Please try again.");
       setLoading(null);
       return;
     }

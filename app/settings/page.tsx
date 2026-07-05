@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { fetchApi } from "@/lib/fetch-api";
 import { combineDateAndTime, formatDateOnlyDisplay, formatQueueWindow, formatTime, toDateInputValue, toTimeInputValue } from "@/lib/utils";
 import { EntranceTabs } from "@/components/entrance-tabs";
 import {
@@ -21,14 +22,6 @@ interface Event {
   queueOpenTime: string;
   queueCloseTime: string;
   isActive: boolean;
-}
-
-async function parseJsonResponse(res: Response) {
-  try {
-    return await res.json();
-  } catch {
-    return { error: "Server error — please try again" };
-  }
 }
 
 export default function SettingsPage() {
@@ -71,13 +64,14 @@ export default function SettingsPage() {
   );
 
   const fetchEvents = useCallback(async () => {
-    const res = await fetch("/api/admin/events", { credentials: "include" });
-    const data = await parseJsonResponse(res);
-    if (!res.ok) {
+    const { ok, data } = await fetchApi<{ events?: Event[]; error?: string }>(
+      "/api/admin/events"
+    );
+    if (!ok) {
       toast.error(data.error ?? "Failed to load events");
       return [];
     }
-    return (data.events ?? []) as Event[];
+    return data.events ?? [];
   }, []);
 
   useEffect(() => {
@@ -93,7 +87,7 @@ export default function SettingsPage() {
   function handleEntranceChange(type: EntranceType) {
     setEntrance(type);
     loadFormForEntrance(events, type);
-    fetch("/api/entrance", {
+    fetchApi("/api/entrance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ entranceType: type }),
@@ -117,17 +111,14 @@ export default function SettingsPage() {
       : "/api/admin/events";
     const method = editingId ? "PATCH" : "POST";
 
-    const res = await fetch(url, {
+    const { ok, data } = await fetchApi<{ event?: Event; error?: string }>(url, {
       method,
-      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-
-    const data = await parseJsonResponse(res);
     setSaving(false);
 
-    if (!res.ok) {
+    if (!ok) {
       toast.error(data.error ?? "Failed to save");
       return;
     }

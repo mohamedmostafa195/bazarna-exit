@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { useSocket } from "@/hooks/use-socket";
 import { formatTime } from "@/lib/utils";
 import { toast } from "sonner";
+import { fetchApi } from "@/lib/fetch-api";
 import { EntranceTabs } from "@/components/entrance-tabs";
 import { type EntranceType } from "@/lib/entrance";
 import { CheckCircle, Trash2, Search } from "lucide-react";
@@ -43,22 +44,23 @@ export default function AdminQueuePage() {
       status: statusFilter,
       entrance,
     });
-    const res = await fetch(`/api/admin/queue?${params}`);
-    if (res.ok) {
-      const json = await res.json();
-      setTickets(json.tickets);
-      setEventId(json.event?.id ?? null);
-      setPagination(json.pagination);
+    const { ok, data } = await fetchApi<{
+      tickets: Ticket[];
+      event?: { id: string };
+      pagination: { total: number; totalPages: number };
+    }>(`/api/admin/queue?${params}`);
+    if (ok) {
+      setTickets(data.tickets);
+      setEventId(data.event?.id ?? null);
+      setPagination(data.pagination);
     }
     setLoading(false);
   }, [page, search, statusFilter, entrance]);
 
   useEffect(() => {
-    fetch("/api/entrance")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.entranceType) setEntrance(data.entranceType);
-      });
+    fetchApi<{ entranceType?: EntranceType }>("/api/entrance").then(({ data }) => {
+      if (data.entranceType) setEntrance(data.entranceType);
+    });
   }, []);
 
   useEffect(() => {
@@ -78,16 +80,18 @@ export default function AdminQueuePage() {
     label?: string
   ) {
     setActionLoading(endpoint);
-    const res = await fetch(`${endpoint}?entrance=${entrance}`, {
-      method: "POST",
-      headers: body ? { "Content-Type": "application/json" } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    const json = await res.json();
+    const { ok, data } = await fetchApi<{ error?: string }>(
+      `${endpoint}?entrance=${entrance}`,
+      {
+        method: "POST",
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      }
+    );
     setActionLoading(null);
 
-    if (!res.ok) {
-      toast.error(json.error ?? "Action failed");
+    if (!ok) {
+      toast.error(data.error ?? "Action failed");
       return;
     }
 

@@ -8,6 +8,7 @@ import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { fetchApi } from "@/lib/fetch-api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,7 +33,7 @@ export default function LoginPage() {
     }
 
     toast.success("Welcome back!");
-    await fetch("/api/entrance", { method: "DELETE" });
+    await fetchApi("/api/entrance", { method: "DELETE" });
     router.push("/");
     router.refresh();
   }

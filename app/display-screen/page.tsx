@@ -1,16 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback, Suspense } from "react";
-import Image from "next/image";
 import { useSearchParams } from "next/navigation";
+import { AppShell } from "@/components/app-shell";
 import { useSocket } from "@/hooks/use-socket";
-import { formatTime } from "@/lib/utils";
 import {
-  getEntranceImage,
-  getEntranceLabel,
   isEntranceType,
   type EntranceType,
 } from "@/lib/entrance";
+import { fetchApi } from "@/lib/fetch-api";
 
 interface DisplayData {
   event: { id: string; eventName: string; entranceType?: string } | null;
@@ -31,7 +29,6 @@ function DisplayContent() {
     : "BAZARNA";
 
   const [data, setData] = useState<DisplayData | null>(null);
-  const [clock, setClock] = useState("");
   const [pulse, setPulse] = useState(false);
   const pollUrl = `/api/display?entrance=${entrance}`;
 
@@ -41,15 +38,14 @@ function DisplayContent() {
       : "from-violet-600 to-fuchsia-500";
 
   const fetchDisplay = useCallback(async () => {
-    const res = await fetch(pollUrl);
-    if (res.ok) {
-      const json = await res.json();
+    const { ok, data } = await fetchApi<DisplayData>(pollUrl);
+    if (ok) {
       setData((prev) => {
-        if (prev?.currentServing !== json.currentServing && json.currentServing) {
+        if (prev?.currentServing !== data.currentServing && data.currentServing) {
           setPulse(true);
           setTimeout(() => setPulse(false), 1200);
         }
-        return json;
+        return data;
       });
     }
   }, [pollUrl]);
@@ -58,13 +54,6 @@ function DisplayContent() {
     fetchDisplay();
   }, [fetchDisplay]);
 
-  useEffect(() => {
-    const tick = () => setClock(formatTime(new Date()));
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
-
   const { lastUpdate } = useSocket(data?.event?.id ?? null, pollUrl);
 
   useEffect(() => {
@@ -72,27 +61,7 @@ function DisplayContent() {
   }, [lastUpdate, fetchDisplay]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-950 text-white">
-      {/* Header */}
-      <header className="flex items-center justify-between border-b border-zinc-800 px-8 py-5">
-        <div className="flex items-center gap-4">
-          <Image
-            src={getEntranceImage(entrance)}
-            alt={getEntranceLabel(entrance)}
-            width={56}
-            height={56}
-            className="rounded-xl object-cover"
-          />
-          <div>
-            <p className="text-2xl font-bold">{getEntranceLabel(entrance)} Exit</p>
-            <p className="text-sm text-zinc-400">
-              {data?.event?.eventName ?? "Exit queue display"}
-            </p>
-          </div>
-        </div>
-        <p className="text-3xl font-light tabular-nums text-zinc-300">{clock}</p>
-      </header>
-
+    <div className="flex min-h-full flex-col bg-zinc-950 text-white">
       {/* Main — Now serving */}
       <main className="flex flex-1 flex-col items-center justify-center px-8 py-10">
         <p className="mb-2 text-xl font-semibold uppercase tracking-[0.3em] text-zinc-400">
@@ -175,14 +144,16 @@ function DisplayContent() {
 
 export default function DisplayScreenPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center bg-zinc-950 text-white">
-          Loading display…
-        </div>
-      }
-    >
-      <DisplayContent />
-    </Suspense>
+    <AppShell>
+      <Suspense
+        fallback={
+          <div className="flex min-h-[60vh] items-center justify-center bg-zinc-950 text-white">
+            Loading display…
+          </div>
+        }
+      >
+        <DisplayContent />
+      </Suspense>
+    </AppShell>
   );
 }

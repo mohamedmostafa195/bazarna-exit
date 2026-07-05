@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { handleApiError } from "@/lib/api-error";
 
 export async function GET() {
   const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
@@ -36,16 +37,6 @@ export async function GET() {
       message: "Database is reachable",
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Database connection failed";
-    return NextResponse.json(
-      {
-        ok: false,
-        database: "error",
-        message,
-        hint: "Run: npx prisma db push (with production DATABASE_URL) to create tables",
-      },
-      { status: 503 }
-    );
+    return handleApiError(error, "GET /api/health");
   }
 }

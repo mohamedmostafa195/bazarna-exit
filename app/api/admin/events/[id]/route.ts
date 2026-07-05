@@ -3,16 +3,18 @@ import { requireAdmin } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { parseDateOnlyToDb } from "@/lib/datetime";
 import { eventSettingsSchema } from "@/lib/validations";
+import { parseJsonBody, withApiHandler } from "@/lib/api-error";
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await requireAdmin();
-  if (error) return error;
+  return withApiHandler(async () => {
+    const { error } = await requireAdmin();
+    if (error) return error;
 
-  const { id } = await params;
-  const body = await request.json();
+    const { id } = await params;
+    const body = await parseJsonBody(request);
 
   const parsed = eventSettingsSchema.safeParse(body);
   if (!parsed.success) {
@@ -56,5 +58,6 @@ export async function PATCH(
     },
   });
 
-  return NextResponse.json({ event });
+    return NextResponse.json({ event });
+  }, "PATCH /api/admin/events/[id]");
 }

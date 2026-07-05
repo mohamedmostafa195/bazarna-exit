@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { toast } from "sonner";
+import { fetchApi } from "@/lib/fetch-api";
 import { Html5Qrcode } from "html5-qrcode";
 
 interface ScannedTicket {
@@ -43,17 +44,19 @@ export default function ScannerPage() {
     setLoading(true);
     setAlreadyCompleted(false);
 
-    const res = await fetch(`/api/admin/scanner?token=${encodeURIComponent(qrToken)}`);
-    const json = await res.json();
+    const { ok, data } = await fetchApi<{
+      error?: string;
+      ticket: ScannedTicket;
+    }>(`/api/admin/scanner?token=${encodeURIComponent(qrToken)}`);
     setLoading(false);
 
-    if (!res.ok) {
-      toast.error(json.error ?? "Ticket not found");
+    if (!ok) {
+      toast.error(data.error ?? "Ticket not found");
       return;
     }
 
-    setTicket(json.ticket);
-    if (json.ticket.status === "COMPLETED") {
+    setTicket(data.ticket);
+    if (data.ticket.status === "COMPLETED") {
       setAlreadyCompleted(true);
     }
   }, [stopScanner]);
@@ -95,27 +98,29 @@ export default function ScannerPage() {
     if (!ticket) return;
     setLoading(true);
 
-    const res = await fetch("/api/admin/scanner", {
+    const { ok, status, data } = await fetchApi<{
+      error?: string;
+      alreadyCompleted?: boolean;
+      ticket: ScannedTicket;
+    }>("/api/admin/scanner", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ qrToken: ticket.qrToken }),
     });
-
-    const json = await res.json();
     setLoading(false);
 
-    if (res.status === 409 && json.alreadyCompleted) {
+    if (status === 409 && data.alreadyCompleted) {
       setAlreadyCompleted(true);
       toast.error("This brand has already completed checkout.");
       return;
     }
 
-    if (!res.ok) {
-      toast.error(json.error ?? "Checkout failed");
+    if (!ok) {
+      toast.error(data.error ?? "Checkout failed");
       return;
     }
 
-    toast.success(`${json.ticket.brandName} checked out!`);
+    toast.success(`${data.ticket.brandName} checked out!`);
     setTicket({ ...ticket, status: "COMPLETED" });
     setAlreadyCompleted(true);
   }

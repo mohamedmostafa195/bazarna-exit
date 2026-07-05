@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { io, Socket } from "socket.io-client";
+import { fetchApi } from "@/lib/fetch-api";
 
 interface QueueUpdateData {
   currentServing: number | null;
@@ -37,19 +38,18 @@ export function useSocket(
   const poll = useCallback(async () => {
     if (!pollUrl || stopPollingRef.current) return false;
     try {
-      const res = await fetch(pollUrl, { credentials: "include" });
-      if (res.status === 401 || res.status === 403) {
+      const { ok, status, data } = await fetchApi<Record<string, unknown>>(pollUrl);
+      if (status === 401 || status === 403) {
         stopPollingRef.current = true;
         return false;
       }
-      if (res.ok) {
-        const data = await res.json();
+      if (ok) {
         setLastUpdate({
-          currentServing: data.currentServing ?? data.stats?.currentServing ?? null,
-          upcoming: data.upcoming ?? data.stats?.upcoming ?? [],
-          tickets: data.tickets ?? [],
-          totalWaiting: data.totalWaiting ?? data.stats?.totalWaiting ?? 0,
-          totalCompleted: data.totalCompleted ?? data.stats?.totalCompleted ?? 0,
+          currentServing: (data.currentServing ?? (data.stats as Record<string, unknown>)?.currentServing ?? null) as number | null,
+          upcoming: (data.upcoming ?? (data.stats as Record<string, unknown>)?.upcoming ?? []) as number[],
+          tickets: (data.tickets ?? []) as unknown[],
+          totalWaiting: (data.totalWaiting ?? (data.stats as Record<string, unknown>)?.totalWaiting ?? 0) as number,
+          totalCompleted: (data.totalCompleted ?? (data.stats as Record<string, unknown>)?.totalCompleted ?? 0) as number,
         });
       }
       return true;

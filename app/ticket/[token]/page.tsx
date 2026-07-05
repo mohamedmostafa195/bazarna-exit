@@ -6,6 +6,7 @@ import Image from "next/image";
 import { QRDisplay } from "@/components/qr-display";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatTime } from "@/lib/utils";
+import { fetchApi } from "@/lib/fetch-api";
 
 interface TicketInfo {
   ticket: {
@@ -30,15 +31,15 @@ export default function TicketPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/ticket/${token}`)
-      .then(async (res) => {
-        if (!res.ok) {
-          setError("Ticket not found");
+    fetchApi<TicketInfo & { error?: string }>(`/api/ticket/${token}`).then(
+      ({ ok, data }) => {
+        if (!ok) {
+          setError(data.error ?? "Ticket not found");
           return;
         }
-        setData(await res.json());
-      })
-      .catch(() => setError("Failed to load ticket"));
+        setData(data);
+      }
+    );
   }, [token]);
 
   if (error) {

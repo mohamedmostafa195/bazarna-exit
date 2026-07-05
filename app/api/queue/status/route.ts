@@ -5,64 +5,70 @@ import { getQueueWindowState } from "@/lib/utils";
 import { resolveEntranceType } from "@/lib/entrance-server";
 import { prisma } from "@/lib/prisma";
 import { getEntranceLabel } from "@/lib/entrance";
+import { withApiHandler } from "@/lib/api-error";
 
 export async function GET(request: Request) {
-  const { session, error } = await requireAuth();
-  if (error) return error;
+  return withApiHandler(async () => {
+    const { session, error } = await requireAuth();
+    if (error) return error;
 
-  const entranceType = await resolveEntranceType(
-    request,
-    session!.user.entranceType
-  );
-
-  if (!entranceType && session!.user.role === "BRAND") {
-    return NextResponse.json(
-      { error: "Please select Bazarna or Byouth entrance first", needsEntrance: true },
-      { status: 400 }
+    const entranceType = await resolveEntranceType(
+      request,
+      session!.user.entranceType
     );
-  }
 
-  const event = await getActiveEvent(entranceType);
-  if (!event) {
+    if (!entranceType && session!.user.role === "BRAND") {
+      return NextResponse.json(
+        {
+          error: "Please select Bazarna or Byouth entrance first",
+          needsEntrance: true,
+        },
+        { status: 400 }
+      );
+    }
+
+    const event = await getActiveEvent(entranceType);
+    if (!event) {
+      return NextResponse.json({
+        event: null,
+        windowState: "closed" as const,
+        entranceType,
+        entranceLabel: entranceType ? getEntranceLabel(entranceType) : null,
+      });
+    }
+
+    const windowState = getQueueWindowState(
+      event.queueOpenTime,
+      event.queueCloseTime
+    );
+
+    const ticket = await prisma.queueTicket.findUnique({
+      where: {
+        userId_eventId: {
+          userId: session!.user.id,
+          eventId: event.id,
+        },
+      },
+    });
+
     return NextResponse.json({
-      event: null,
-      windowState: "closed" as const,
+      event: {
+        id: event.id,
+        eventName: event.eventName,
+        entranceType: event.entranceType,
+        queueOpenTime: event.queueOpenTime,
+        queueCloseTime: event.queueCloseTime,
+        eventDate: event.eventDate,
+        currentServingNumber: event.currentServingNumber,
+      },
+      windowState,
+      ticket,
       entranceType,
       entranceLabel: entranceType ? getEntranceLabel(entranceType) : null,
-    });
-  }
-
-  const windowState = getQueueWindowState(
-    event.queueOpenTime,
-    event.queueCloseTime
-  );
-
-  const ticket = await prisma.queueTicket.findUnique({
-    where: {
-      userId_eventId: {
-        userId: session!.user.id,
-        eventId: event.id,
+      user: {
+        brandName: session!.user.brandName,
+        boothNumber: session!.user.boothNumber,
       },
-    },
-  });
-
-  return NextResponse.json({
-    event: {
-      id: event.id,
-      eventName: event.eventName,
-      entranceType: event.entranceType,
-      queueOpenTime: event.queueOpenTime,
-      queueCloseTime: event.queueCloseTime,
-      eventDate: event.eventDate,
-      currentServingNumber: event.currentServingNumber,
-    },
-    windowState,
-    ticket,
-    entranceType,
-    entranceLabel: entranceType ? getEntranceLabel(entranceType) : null,
-    user: {
-      brandName: session!.user.brandName,
-      boothNumber: session!.user.boothNumber,
-    },
-  });
+    });
+  }, "GET /api/queue/status");
 }

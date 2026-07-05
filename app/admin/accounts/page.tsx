@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { fetchApi } from "@/lib/fetch-api";
 import { Trash2, Users, Search } from "lucide-react";
 
 interface BrandUser {
@@ -27,11 +28,8 @@ export default function AdminAccountsPage() {
   const [deletingAll, setDeletingAll] = useState(false);
 
   const fetchUsers = useCallback(async () => {
-    const res = await fetch("/api/admin/users");
-    if (res.ok) {
-      const data = await res.json();
-      setUsers(data.users);
-    }
+    const { ok, data } = await fetchApi<{ users: BrandUser[] }>("/api/admin/users");
+    if (ok) setUsers(data.users);
     setLoading(false);
   }, []);
 
@@ -55,11 +53,13 @@ export default function AdminAccountsPage() {
     }
 
     setDeletingId(id);
-    const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
+    const { ok, data } = await fetchApi<{ error?: string }>(
+      `/api/admin/users/${id}`,
+      { method: "DELETE" }
+    );
     setDeletingId(null);
 
-    if (!res.ok) {
-      const data = await res.json();
+    if (!ok) {
       toast.error(data.error ?? "Failed to delete account");
       return;
     }
@@ -80,20 +80,21 @@ export default function AdminAccountsPage() {
     if (typed !== "DELETE") return;
 
     setDeletingAll(true);
-    const res = await fetch("/api/admin/users", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ confirm: "DELETE_ALL_BRANDS" }),
-    });
+    const { ok, data } = await fetchApi<{ deleted?: number; error?: string }>(
+      "/api/admin/users",
+      {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: "DELETE_ALL_BRANDS" }),
+      }
+    );
     setDeletingAll(false);
 
-    if (!res.ok) {
-      const data = await res.json();
+    if (!ok) {
       toast.error(data.error ?? "Failed to delete accounts");
       return;
     }
 
-    const data = await res.json();
     toast.success(`Deleted ${data.deleted} brand account(s)`);
     fetchUsers();
   }

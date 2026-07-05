@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { parseDateOnlyToDb } from "@/lib/datetime";
 import { eventSettingsSchema } from "@/lib/validations";
+import { parseJsonBody, withApiHandler } from "@/lib/api-error";
 
 function parseEventPayload(body: unknown) {
   const parsed = eventSettingsSchema.safeParse(body);
@@ -49,35 +50,39 @@ function parseEventPayload(body: unknown) {
 }
 
 export async function GET() {
-  const { error } = await requireAdmin();
-  if (error) return error;
+  return withApiHandler(async () => {
+    const { error } = await requireAdmin();
+    if (error) return error;
 
-  const events = await prisma.event.findMany({
-    orderBy: { eventDate: "desc" },
-  });
+    const events = await prisma.event.findMany({
+      orderBy: { eventDate: "desc" },
+    });
 
-  return NextResponse.json({ events });
+    return NextResponse.json({ events });
+  }, "GET /api/admin/events");
 }
 
 export async function POST(request: Request) {
-  const { error } = await requireAdmin();
-  if (error) return error;
+  return withApiHandler(async () => {
+    const { error } = await requireAdmin();
+    if (error) return error;
 
-  const body = await request.json();
-  const parsed = parseEventPayload(body);
-  if (parsed.error) return parsed.error;
+    const body = await parseJsonBody(request);
+    const parsed = parseEventPayload(body);
+    if (parsed.error) return parsed.error;
 
-  await prisma.event.updateMany({
-    where: { entranceType: parsed.data!.entranceType },
-    data: { isActive: false },
-  });
+    await prisma.event.updateMany({
+      where: { entranceType: parsed.data!.entranceType },
+      data: { isActive: false },
+    });
 
-  const event = await prisma.event.create({
-    data: {
-      ...parsed.data!,
-      isActive: true,
-    },
-  });
+    const event = await prisma.event.create({
+      data: {
+        ...parsed.data!,
+        isActive: true,
+      },
+    });
 
-  return NextResponse.json({ event }, { status: 201 });
+    return NextResponse.json({ event }, { status: 201 });
+  }, "POST /api/admin/events");
 }

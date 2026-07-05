@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { fetchApi } from "@/lib/fetch-api";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -23,16 +24,14 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
 
-    const res = await fetch("/api/auth/register", {
+    const { ok, data } = await fetchApi<{ error?: string }>("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form),
     });
-
-    const data = await res.json();
     setLoading(false);
 
-    if (!res.ok) {
+    if (!ok) {
       toast.error(data.error ?? "Registration failed");
       return;
     }

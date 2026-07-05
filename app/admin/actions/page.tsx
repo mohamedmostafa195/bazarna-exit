@@ -12,6 +12,7 @@ import {
   type ActionType,
 } from "@/lib/action-log";
 import { type EntranceType } from "@/lib/entrance";
+import { fetchApi } from "@/lib/fetch-api";
 import { formatRelativeTime, formatTime } from "@/lib/utils";
 import {
   Activity,
@@ -68,11 +69,10 @@ export default function AdminActionsPage() {
       limit: "50",
       entrance: showAll ? "all" : entrance,
     });
-    const res = await fetch(`/api/admin/actions?${params}`);
-    if (res.ok) {
-      const data = await res.json();
-      setLogs(data.logs);
-    }
+    const { ok, data } = await fetchApi<{ logs: ActionItem[] }>(
+      `/api/admin/actions?${params}`
+    );
+    if (ok) setLogs(data.logs);
     setLoading(false);
   }, [entrance, showAll]);
 

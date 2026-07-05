@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { getActiveEvent, getQueueStats } from "@/lib/queue";
 import { getEntranceFromRequest } from "@/lib/entrance-server";
+import { withApiHandler } from "@/lib/api-error";
 
 export async function GET(request: Request) {
+  return withApiHandler(async () => {
   const entranceType = getEntranceFromRequest(request) ?? "BAZARNA";
   const event = await getActiveEvent(entranceType);
 
@@ -31,4 +33,5 @@ export async function GET(request: Request) {
     totalWaiting: stats.totalWaiting,
     totalCompleted: stats.totalCompleted,
   });
+  }, "GET /api/display");
 }

@@ -3,10 +3,12 @@ import { requireAdmin } from "@/lib/auth-helpers";
 import { getActiveEvent, getQueueStats } from "@/lib/queue";
 import { getEntranceFromRequest } from "@/lib/entrance-server";
 import { prisma } from "@/lib/prisma";
+import { withApiHandler } from "@/lib/api-error";
 
 export async function GET(request: Request) {
-  const { error } = await requireAdmin();
-  if (error) return error;
+  return withApiHandler(async () => {
+    const { error } = await requireAdmin();
+    if (error) return error;
 
   const { searchParams } = new URL(request.url);
   const eventId = searchParams.get("eventId");
@@ -80,4 +82,5 @@ export async function GET(request: Request) {
       totalPages: Math.ceil(total / limit),
     },
   });
+  }, "GET /api/admin/queue");
 }

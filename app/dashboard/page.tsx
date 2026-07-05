@@ -9,6 +9,7 @@ import { QRDisplay } from "@/components/qr-display";
 import { useSocket, useCountdown } from "@/hooks/use-socket";
 import { formatQueueWindow, formatTime } from "@/lib/utils";
 import { toast } from "sonner";
+import { fetchApi } from "@/lib/fetch-api";
 import { Clock, Users, Hash } from "lucide-react";
 
 interface QueueData {
@@ -38,11 +39,12 @@ export default function DashboardPage() {
   const [currentServing, setCurrentServing] = useState<number | null>(null);
 
   const fetchStatus = useCallback(async () => {
-    const res = await fetch("/api/queue/status");
-    if (res.ok) {
-      const json = await res.json();
-      setData(json);
-      setCurrentServing(json.event?.currentServingNumber ?? null);
+    const { ok, data } = await fetchApi<QueueData & { error?: string }>(
+      "/api/queue/status"
+    );
+    if (ok) {
+      setData(data);
+      setCurrentServing(data.event?.currentServingNumber ?? null);
     }
     setLoading(false);
   }, []);
@@ -87,17 +89,19 @@ export default function DashboardPage() {
 
   async function handleRequestNumber() {
     setRequesting(true);
-    const res = await fetch("/api/queue/request", { method: "POST" });
-    const json = await res.json();
+    const { ok, data } = await fetchApi<{
+      error?: string;
+      ticket?: { queueNumber: number };
+    }>("/api/queue/request", { method: "POST" });
     setRequesting(false);
 
-    if (!res.ok) {
-      toast.error(json.error ?? "Failed to get queue number");
-      if (json.ticket) fetchStatus();
+    if (!ok) {
+      toast.error(data.error ?? "Failed to get queue number");
+      if (data.ticket) fetchStatus();
       return;
     }
 
-    toast.success(`Your exit number is #${json.ticket.queueNumber}!`);
+    toast.success(`Your exit number is #${data.ticket!.queueNumber}!`);
     fetchStatus();
   }
 
@@ -131,7 +135,7 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={async () => {
-              await fetch("/api/entrance", { method: "DELETE" });
+              await fetchApi("/api/entrance", { method: "DELETE" });
               window.location.href = "/";
             }}
             className="mt-1 text-sm text-orange-600 hover:underline dark:text-orange-400"
