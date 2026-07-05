@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { formatTime } from "@/lib/utils";
+import { combineDateAndTime, formatDateOnlyDisplay, formatQueueWindow, formatTime, toDateInputValue, toTimeInputValue } from "@/lib/utils";
 import { EntranceTabs } from "@/components/entrance-tabs";
 import {
   getEntranceLabel,
@@ -23,6 +23,14 @@ interface Event {
   isActive: boolean;
 }
 
+async function parseJsonResponse(res: Response) {
+  try {
+    return await res.json();
+  } catch {
+    return { error: "Server error — please try again" };
+  }
+}
+
 export default function SettingsPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,51 +38,56 @@ export default function SettingsPage() {
   const [entrance, setEntrance] = useState<EntranceType>("BAZARNA");
   const [form, setForm] = useState({
     eventName: "",
-    entranceType: "BAZARNA" as EntranceType,
     eventDate: "",
     queueOpenTime: "21:00",
     queueCloseTime: "23:00",
   });
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  function loadFormForEntrance(allEvents: Event[], type: EntranceType) {
-    const active = allEvents.find(
-      (e) => e.isActive && e.entranceType === type
-    );
-    if (active) {
-      setEditingId(active.id);
-      setForm({
-        eventName: active.eventName,
-        entranceType: type,
-        eventDate: active.eventDate.split("T")[0],
-        queueOpenTime: new Date(active.queueOpenTime)
-          .toTimeString()
-          .slice(0, 5),
-        queueCloseTime: new Date(active.queueCloseTime)
-          .toTimeString()
-          .slice(0, 5),
-      });
-    } else {
-      setEditingId(null);
-      setForm({
-        eventName: "",
-        entranceType: type,
-        eventDate: "",
-        queueOpenTime: "21:00",
-        queueCloseTime: "23:00",
-      });
+  const loadFormForEntrance = useCallback(
+    (allEvents: Event[], type: EntranceType) => {
+      const active = allEvents.find(
+        (e) => e.isActive && e.entranceType === type
+      );
+      if (active) {
+        setEditingId(active.id);
+        setForm({
+          eventName: active.eventName,
+          eventDate: toDateInputValue(active.eventDate),
+          queueOpenTime: toTimeInputValue(new Date(active.queueOpenTime)),
+          queueCloseTime: toTimeInputValue(new Date(active.queueCloseTime)),
+        });
+      } else {
+        setEditingId(null);
+        setForm({
+          eventName: "",
+          eventDate: toDateInputValue(new Date().toISOString()),
+          queueOpenTime: "21:00",
+          queueCloseTime: "23:00",
+        });
+      }
+    },
+    []
+  );
+
+  const fetchEvents = useCallback(async () => {
+    const res = await fetch("/api/admin/events", { credentials: "include" });
+    const data = await parseJsonResponse(res);
+    if (!res.ok) {
+      toast.error(data.error ?? "Failed to load events");
+      return [];
     }
-  }
+    return (data.events ?? []) as Event[];
+  }, []);
 
   useEffect(() => {
-    fetch("/api/admin/events")
-      .then((r) => r.json())
-      .then((data) => {
-        const allEvents = data.events ?? [];
-        setEvents(allEvents);
-        loadFormForEntrance(allEvents, entrance);
-        setLoading(false);
-      });
+    fetchEvents().then((allEvents) => {
+      setEvents(allEvents);
+      loadFormForEntrance(allEvents, entrance);
+      setLoading(false);
+    });
+    // Only load once on mount; entrance changes use cached events
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function handleEntranceChange(type: EntranceType) {
@@ -91,19 +104,27 @@ export default function SettingsPage() {
     e.preventDefault();
     setSaving(true);
 
-    const url = "/api/admin/events";
-    const method = editingId ? "PUT" : "POST";
-    const body = editingId
-      ? { eventId: editingId, ...form, entranceType: entrance }
-      : { ...form, entranceType: entrance };
+    const payload = {
+      eventName: form.eventName,
+      entranceType: entrance,
+      eventDate: form.eventDate,
+      queueOpenAt: combineDateAndTime(form.eventDate, form.queueOpenTime),
+      queueCloseAt: combineDateAndTime(form.eventDate, form.queueCloseTime),
+    };
+
+    const url = editingId
+      ? `/api/admin/events/${editingId}`
+      : "/api/admin/events";
+    const method = editingId ? "PATCH" : "POST";
 
     const res = await fetch(url, {
       method,
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(payload),
     });
 
-    const data = await res.json();
+    const data = await parseJsonResponse(res);
     setSaving(false);
 
     if (!res.ok) {
@@ -112,10 +133,12 @@ export default function SettingsPage() {
     }
 
     toast.success(editingId ? "Event updated" : "Event created");
-    const eventsRes = await fetch("/api/admin/events");
-    const eventsData = await eventsRes.json();
-    setEvents(eventsData.events ?? []);
-    if (!editingId) setEditingId(data.event.id);
+
+    const allEvents = await fetchEvents();
+    setEvents(allEvents);
+    const savedId = editingId ?? data.event?.id;
+    if (savedId) setEditingId(savedId);
+    loadFormForEntrance(allEvents, entrance);
   }
 
   if (loading) {
@@ -176,8 +199,18 @@ export default function SettingsPage() {
             </div>
             <p className="text-sm text-zinc-500">
               Brands can only request exit numbers between these times on the
-              event date.
+              event date. Times use your device&apos;s local timezone.
             </p>
+            {form.eventDate && form.queueOpenTime && form.queueCloseTime && (
+              <p className="rounded-lg bg-orange-50 px-3 py-2 text-sm text-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
+                Queue window:{" "}
+                {formatQueueWindow(
+                  new Date(combineDateAndTime(form.eventDate, form.queueOpenTime)),
+                  new Date(combineDateAndTime(form.eventDate, form.queueCloseTime))
+                )}{" "}
+                on {formatDateOnlyDisplay(form.eventDate + "T12:00:00")}
+              </p>
+            )}
             <Button type="submit" loading={saving}>
               {editingId ? "Update Event" : "Create Event"}
             </Button>
@@ -200,7 +233,7 @@ export default function SettingsPage() {
                       </span>
                     </p>
                     <p className="text-sm text-zinc-500">
-                      {new Date(event.eventDate).toLocaleDateString()} ·{" "}
+                      {formatDateOnlyDisplay(event.eventDate)} ·{" "}
                       {formatTime(new Date(event.queueOpenTime))} –{" "}
                       {formatTime(new Date(event.queueCloseTime))}
                     </p>

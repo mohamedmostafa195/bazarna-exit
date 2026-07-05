@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { QRDisplay } from "@/components/qr-display";
 import { useSocket, useCountdown } from "@/hooks/use-socket";
-import { formatTime } from "@/lib/utils";
+import { formatQueueWindow, formatTime } from "@/lib/utils";
 import { toast } from "sonner";
 import { Clock, Users, Hash } from "lucide-react";
 
@@ -77,6 +77,9 @@ export default function DashboardPage() {
 
   const openTime = data?.event
     ? new Date(data.event.queueOpenTime)
+    : null;
+  const closeTime = data?.event
+    ? new Date(data.event.queueCloseTime)
     : null;
   const countdown = useCountdown(
     data?.windowState === "before" ? openTime : null
@@ -151,6 +154,11 @@ export default function DashboardPage() {
               {data.entranceLabel} queue only — numbers here are separate from the
               other exit.
             </p>
+            {openTime && closeTime && (
+              <p className="mb-4 text-sm text-zinc-500">
+                Queue hours: {formatQueueWindow(openTime, closeTime)}
+              </p>
+            )}
             {data.windowState === "before" && (
               <>
                 <Clock className="mx-auto h-12 w-12 text-orange-500" />
@@ -207,6 +215,11 @@ export default function DashboardPage() {
                 <h2 className="text-xl font-semibold text-red-600 dark:text-red-400">
                   The exit queue is now closed. Please contact the Bazarna team.
                 </h2>
+                {openTime && closeTime && (
+                  <p className="mt-2 text-sm text-zinc-500">
+                    Queue was open {formatQueueWindow(openTime, closeTime)}
+                  </p>
+                )}
                 <Button className="mt-6" disabled>
                   Get My Exit Number
                 </Button>

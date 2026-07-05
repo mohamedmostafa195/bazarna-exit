@@ -3,6 +3,9 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/validations";
+import { ensureAuthEnv, getAppBaseUrl } from "@/lib/app-url";
+
+ensureAuthEnv();
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
@@ -48,15 +51,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async redirect({ url, baseUrl }) {
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      const appUrl = getAppBaseUrl();
+      const safeBase =
+        baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1")
+          ? appUrl
+          : baseUrl;
+
+      if (url.startsWith("/")) return `${safeBase}${url}`;
       try {
         const target = new URL(url);
-        const base = new URL(baseUrl);
+        const base = new URL(safeBase);
         if (target.origin === base.origin) return url;
+        // Block redirects to localhost when on production
+        if (
+          target.hostname === "localhost" ||
+          target.hostname === "127.0.0.1"
+        ) {
+          return `${safeBase}/login`;
+        }
       } catch {
         /* ignore invalid url */
       }
-      return `${baseUrl}/login`;
+      return `${safeBase}/login`;
     },
     async jwt({ token, user, trigger, session }) {
       if (user) {

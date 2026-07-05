@@ -20,8 +20,8 @@ export const eventSettingsSchema = z.object({
   eventName: z.string().min(2, "Event name is required"),
   entranceType: z.enum(["BAZARNA", "BYOUTH"]),
   eventDate: z.string().min(1, "Event date is required"),
-  queueOpenTime: z.string().min(1, "Queue open time is required"),
-  queueCloseTime: z.string().min(1, "Queue close time is required"),
+  queueOpenAt: z.string().min(1, "Queue open time is required"),
+  queueCloseAt: z.string().min(1, "Queue close time is required"),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

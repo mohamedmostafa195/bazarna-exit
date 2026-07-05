@@ -1,7 +1,52 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
+import { parseDateOnlyToDb } from "@/lib/datetime";
 import { eventSettingsSchema } from "@/lib/validations";
+
+function parseEventPayload(body: unknown) {
+  const parsed = eventSettingsSchema.safeParse(body);
+  if (!parsed.success) {
+    return {
+      error: NextResponse.json(
+        { error: parsed.error.issues[0].message },
+        { status: 400 }
+      ),
+    };
+  }
+
+  const eventDate = parseDateOnlyToDb(parsed.data.eventDate);
+  const queueOpenTime = new Date(parsed.data.queueOpenAt);
+  const queueCloseTime = new Date(parsed.data.queueCloseAt);
+
+  if (isNaN(queueOpenTime.getTime()) || isNaN(queueCloseTime.getTime())) {
+    return {
+      error: NextResponse.json(
+        { error: "Invalid queue open or close time" },
+        { status: 400 }
+      ),
+    };
+  }
+
+  if (queueCloseTime <= queueOpenTime) {
+    return {
+      error: NextResponse.json(
+        { error: "Queue close time must be after open time" },
+        { status: 400 }
+      ),
+    };
+  }
+
+  return {
+    data: {
+      eventName: parsed.data.eventName,
+      entranceType: parsed.data.entranceType,
+      eventDate,
+      queueOpenTime,
+      queueCloseTime,
+    },
+  };
+}
 
 export async function GET() {
   const { error } = await requireAdmin();
@@ -19,83 +64,20 @@ export async function POST(request: Request) {
   if (error) return error;
 
   const body = await request.json();
-  const parsed = eventSettingsSchema.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0].message },
-      { status: 400 }
-    );
-  }
-
-  const eventDate = new Date(parsed.data.eventDate);
-  const [openH, openM] = parsed.data.queueOpenTime.split(":").map(Number);
-  const [closeH, closeM] = parsed.data.queueCloseTime.split(":").map(Number);
-
-  const queueOpenTime = new Date(eventDate);
-  queueOpenTime.setHours(openH, openM, 0, 0);
-
-  const queueCloseTime = new Date(eventDate);
-  queueCloseTime.setHours(closeH, closeM, 0, 0);
+  const parsed = parseEventPayload(body);
+  if (parsed.error) return parsed.error;
 
   await prisma.event.updateMany({
-    where: { entranceType: parsed.data.entranceType },
+    where: { entranceType: parsed.data!.entranceType },
     data: { isActive: false },
   });
 
   const event = await prisma.event.create({
     data: {
-      eventName: parsed.data.eventName,
-      entranceType: parsed.data.entranceType,
-      eventDate,
-      queueOpenTime,
-      queueCloseTime,
+      ...parsed.data!,
       isActive: true,
     },
   });
 
   return NextResponse.json({ event }, { status: 201 });
-}
-
-export async function PUT(request: Request) {
-  const { error } = await requireAdmin();
-  if (error) return error;
-
-  const body = await request.json();
-  const { eventId, ...rest } = body;
-
-  if (!eventId) {
-    return NextResponse.json({ error: "Event ID required" }, { status: 400 });
-  }
-
-  const parsed = eventSettingsSchema.safeParse(rest);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0].message },
-      { status: 400 }
-    );
-  }
-
-  const eventDate = new Date(parsed.data.eventDate);
-  const [openH, openM] = parsed.data.queueOpenTime.split(":").map(Number);
-  const [closeH, closeM] = parsed.data.queueCloseTime.split(":").map(Number);
-
-  const queueOpenTime = new Date(eventDate);
-  queueOpenTime.setHours(openH, openM, 0, 0);
-
-  const queueCloseTime = new Date(eventDate);
-  queueCloseTime.setHours(closeH, closeM, 0, 0);
-
-  const event = await prisma.event.update({
-    where: { id: eventId },
-    data: {
-      eventName: parsed.data.eventName,
-      entranceType: parsed.data.entranceType,
-      eventDate,
-      queueOpenTime,
-      queueCloseTime,
-    },
-  });
-
-  return NextResponse.json({ event });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 
 interface QueueUpdateData {
@@ -32,11 +32,16 @@ export function useSocket(
 ) {
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<QueueUpdateData | null>(null);
+  const stopPollingRef = useRef(false);
 
   const poll = useCallback(async () => {
-    if (!pollUrl) return;
+    if (!pollUrl || stopPollingRef.current) return false;
     try {
-      const res = await fetch(pollUrl);
+      const res = await fetch(pollUrl, { credentials: "include" });
+      if (res.status === 401 || res.status === 403) {
+        stopPollingRef.current = true;
+        return false;
+      }
       if (res.ok) {
         const data = await res.json();
         setLastUpdate({
@@ -47,32 +52,45 @@ export function useSocket(
           totalCompleted: data.totalCompleted ?? data.stats?.totalCompleted ?? 0,
         });
       }
+      return true;
     } catch {
-      /* ignore polling errors */
+      return !stopPollingRef.current;
     }
   }, [pollUrl]);
 
   useEffect(() => {
+    stopPollingRef.current = false;
+
     if (!eventId) return;
 
     const s = getSocket();
     let pollInterval: ReturnType<typeof setInterval> | null = null;
 
-    const onConnect = () => {
-      setConnected(true);
+    const stopPollInterval = () => {
       if (pollInterval) {
         clearInterval(pollInterval);
         pollInterval = null;
       }
     };
+
+    const startPollInterval = () => {
+      if (pollInterval || !pollUrl || stopPollingRef.current) return;
+      pollInterval = setInterval(async () => {
+        const shouldContinue = await poll();
+        if (!shouldContinue) stopPollInterval();
+      }, 5000);
+    };
+
+    const onConnect = () => {
+      setConnected(true);
+      stopPollInterval();
+    };
     const onDisconnect = () => setConnected(false);
     const onUpdate = (data: QueueUpdateData) => setLastUpdate(data);
-    const onConnectError = () => {
+    const onConnectError = async () => {
       setConnected(false);
-      poll();
-      if (!pollInterval && pollUrl) {
-        pollInterval = setInterval(poll, 5000);
-      }
+      const shouldContinue = await poll();
+      if (shouldContinue) startPollInterval();
     };
 
     s.on("connect", onConnect);
@@ -84,17 +102,19 @@ export function useSocket(
     setConnected(s.connected);
 
     if (!s.connected && pollUrl) {
-      poll();
-      pollInterval = setInterval(poll, 5000);
+      poll().then((shouldContinue) => {
+        if (shouldContinue) startPollInterval();
+      });
     }
 
     return () => {
+      stopPollingRef.current = true;
+      stopPollInterval();
       s.emit("leave:event", eventId);
       s.off("connect", onConnect);
       s.off("disconnect", onDisconnect);
       s.off("queue:update", onUpdate);
       s.off("connect_error", onConnectError);
-      if (pollInterval) clearInterval(pollInterval);
     };
   }, [eventId, poll, pollUrl]);
 

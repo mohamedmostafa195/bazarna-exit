@@ -1,6 +1,12 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { ENTRANCE_COOKIE, isEntranceType } from "@/lib/entrance";
+import { getRequestOrigin } from "@/lib/app-url";
+
+function redirectTo(path: string, req: NextRequest) {
+  return NextResponse.redirect(new URL(path, getRequestOrigin(req)));
+}
 
 export default auth((req) => {
   const isLoggedIn = !!req.auth;
@@ -16,19 +22,19 @@ export default auth((req) => {
 
   if (isAdminRoute || isBrandRoute) {
     if (!isLoggedIn) {
-      return NextResponse.redirect(new URL("/login", req.url));
+      return redirectTo("/login", req);
     }
     if (!hasEntrance) {
-      return NextResponse.redirect(new URL("/", req.url));
+      return redirectTo("/", req);
     }
   }
 
   if (isAdminRoute && role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    return redirectTo("/dashboard", req);
   }
 
   if (isBrandRoute && role === "ADMIN") {
-    return NextResponse.redirect(new URL("/admin/dashboard", req.url));
+    return redirectTo("/admin/dashboard", req);
   }
 
   return NextResponse.next();

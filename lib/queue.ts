@@ -144,6 +144,33 @@ export async function requestQueueNumber(userId: string, eventId: string) {
   return { ticket: result, error: null };
 }
 
+export async function releaseQueueTicket(userId: string, eventId: string) {
+  const ticket = await prisma.queueTicket.findUnique({
+    where: { userId_eventId: { userId, eventId } },
+  });
+
+  if (!ticket) {
+    return { success: true, released: false };
+  }
+
+  if (ticket.status !== "WAITING") {
+    return {
+      success: false,
+      released: false,
+      error: "Your number was already called — it cannot be released on logout",
+    };
+  }
+
+  await prisma.queueTicket.delete({ where: { id: ticket.id } });
+  await broadcastQueueUpdate(eventId);
+
+  return {
+    success: true,
+    released: true,
+    queueNumber: ticket.queueNumber,
+  };
+}
+
 export async function callNextNumber(eventId: string) {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) return { error: "Event not found" };
