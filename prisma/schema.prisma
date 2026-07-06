@@ -32,6 +32,7 @@ model Event {
   eventDate            DateTime      @map("event_date")
   isActive             Boolean       @default(true) @map("is_active")
   currentServingNumber Int?          @map("current_serving_number")
+  nextQueueNumber      Int           @default(1) @map("next_queue_number")
   tickets              QueueTicket[]
 
   @@map("events")

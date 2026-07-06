@@ -39,12 +39,22 @@ export function handleApiError(error: unknown, context?: string): NextResponse {
           "Database tables are missing. Run: npx prisma db push",
           503
         );
+      case "P2022":
+        return apiError(
+          "Database schema is out of date. Run: npx prisma db push",
+          503
+        );
       case "P2002":
         return apiError("This record already exists.", 409);
       case "P2025":
         return apiError("Record not found.", 404);
-      default:
-        return apiError("Database error. Please try again.", 500);
+      default: {
+        const detail =
+          process.env.NODE_ENV === "development"
+            ? `Database error (${error.code}): ${error.message}`
+            : "Database error. Please try again.";
+        return apiError(detail, 500);
+      }
     }
   }
 

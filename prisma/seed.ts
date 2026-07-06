@@ -97,6 +97,22 @@ async function main() {
   console.log("Brand: brand@example.com / brand123456");
   console.log("Bazarna event:", bazarnaEvent.eventName);
   console.log("Byouth event:", byouthEvent.eventName);
+
+  await syncNextQueueNumbers();
+}
+
+async function syncNextQueueNumbers() {
+  const events = await prisma.event.findMany({ select: { id: true } });
+  for (const event of events) {
+    const max = await prisma.queueTicket.aggregate({
+      where: { eventId: event.id },
+      _max: { queueNumber: true },
+    });
+    await prisma.event.update({
+      where: { id: event.id },
+      data: { nextQueueNumber: (max._max.queueNumber ?? 0) + 1 },
+    });
+  }
 }
 
 main()
