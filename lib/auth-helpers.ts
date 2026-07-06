@@ -1,9 +1,20 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
+async function getSession() {
+  // Required in Next.js 15+ Route Handlers so auth() can read session cookies.
+  try {
+    await headers();
+  } catch {
+    /* not in a request context */
+  }
+  return auth();
+}
+
 export async function requireAuth() {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user) {
     return { session: null, error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }
@@ -11,20 +22,26 @@ export async function requireAuth() {
 }
 
 async function resolveUserRole(userId: string, sessionRole?: string | null) {
-  const normalized = sessionRole?.toUpperCase();
-  if (normalized === "ADMIN" || normalized === "BRAND") {
-    return normalized;
-  }
-
+  let dbRole: string | null = null;
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { role: true },
     });
-    return user?.role?.toUpperCase() ?? null;
+    dbRole = user?.role?.toUpperCase() ?? null;
   } catch {
-    return null;
+    /* fall back to session role */
   }
+
+  // Database is source of truth (fixes stale JWT after seed / role change).
+  if (dbRole === "ADMIN") return "ADMIN";
+
+  const normalized = sessionRole?.toUpperCase();
+  if (normalized === "ADMIN" || normalized === "BRAND") {
+    return normalized;
+  }
+
+  return dbRole;
 }
 
 export async function requireAdmin() {

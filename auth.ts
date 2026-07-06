@@ -22,7 +22,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!parsed.success) return null;
 
         const user = await prisma.user.findUnique({
-          where: { email: parsed.data.email },
+          where: { email: parsed.data.email.toLowerCase() },
         });
 
         if (!user) return null;
@@ -85,6 +85,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (trigger === "update" && session?.entranceType) {
         token.entranceType = session.entranceType;
       }
+
+      // Keep JWT role in sync with the database (important on Vercel after seeding admins).
+      if (token.id && typeof token.id === "string") {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id },
+            select: {
+              role: true,
+              entranceType: true,
+              brandName: true,
+              boothNumber: true,
+            },
+          });
+          if (dbUser) {
+            token.role = dbUser.role;
+            token.brandName = dbUser.brandName;
+            token.boothNumber = dbUser.boothNumber;
+            if (trigger !== "update" || !session?.entranceType) {
+              token.entranceType = dbUser.entranceType;
+            }
+          }
+        } catch (error) {
+          console.error("[auth] Failed to refresh user from database:", error);
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {

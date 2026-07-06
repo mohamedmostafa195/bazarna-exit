@@ -9,10 +9,10 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  return withApiHandler(async () => {
-    const { error } = await requireAdmin();
-    if (error) return error;
+  const adminCheck = await requireAdmin();
+  if (adminCheck.error) return adminCheck.error;
 
+  return withApiHandler(async () => {
     const { id } = await params;
     const body = await parseJsonBody(request);
 

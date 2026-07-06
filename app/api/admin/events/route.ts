@@ -50,10 +50,10 @@ function parseEventPayload(body: unknown) {
 }
 
 export async function GET() {
-  return withApiHandler(async () => {
-    const { error } = await requireAdmin();
-    if (error) return error;
+  const adminCheck = await requireAdmin();
+  if (adminCheck.error) return adminCheck.error;
 
+  return withApiHandler(async () => {
     const events = await prisma.event.findMany({
       orderBy: { eventDate: "desc" },
     });
@@ -63,10 +63,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  return withApiHandler(async () => {
-    const { error } = await requireAdmin();
-    if (error) return error;
+  const adminCheck = await requireAdmin();
+  if (adminCheck.error) return adminCheck.error;
 
+  return withApiHandler(async () => {
     const body = await parseJsonBody(request);
     const parsed = parseEventPayload(body);
     if (parsed.error) return parsed.error;

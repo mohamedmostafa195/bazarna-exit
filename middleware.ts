@@ -11,7 +11,7 @@ function redirectTo(path: string, req: NextRequest) {
 export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const path = req.nextUrl.pathname;
-  const role = req.auth?.user?.role;
+  const role = req.auth?.user?.role?.toUpperCase();
 
   const cookieEntrance = req.cookies.get(ENTRANCE_COOKIE)?.value;
   const hasEntrance = isEntranceType(cookieEntrance);
@@ -41,5 +41,12 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*", "/settings/:path*"],
+  matcher: [
+    "/dashboard",
+    "/dashboard/:path*",
+    "/admin",
+    "/admin/:path*",
+    "/settings",
+    "/settings/:path*",
+  ],
 };
