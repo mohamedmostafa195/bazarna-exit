@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/validations";
 import { ensureAuthEnv, getAppBaseUrl } from "@/lib/app-url";
+import { normalizeEmail } from "@/lib/normalize-email";
 
 ensureAuthEnv();
 
@@ -21,8 +22,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: parsed.data.email.toLowerCase() },
+        const email = normalizeEmail(parsed.data.email);
+
+        const user = await prisma.user.findFirst({
+          where: { email: { equals: email, mode: "insensitive" } },
         });
 
         if (!user) return null;

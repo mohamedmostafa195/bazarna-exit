@@ -20,11 +20,24 @@ async function main() {
   });
 
   const yassminePassword = await bcrypt.hash("yassminePassword", 12);
+  const yassmineEmail = "yassmine@bazarna.com";
+
+  // Migrate legacy mixed-case email if present
+  const legacyYassmine = await prisma.user.findFirst({
+    where: { email: { equals: yassmineEmail, mode: "insensitive" } },
+  });
+  if (legacyYassmine && legacyYassmine.email !== yassmineEmail) {
+    await prisma.user.update({
+      where: { id: legacyYassmine.id },
+      data: { email: yassmineEmail },
+    });
+  }
+
   const yassmineAdmin = await prisma.user.upsert({
-    where: { email: "yassmine@Bazarna.com" },
+    where: { email: yassmineEmail },
     update: { password: yassminePassword, role: "ADMIN" },
     create: {
-      email: "yassmine@Bazarna.com",
+      email: yassmineEmail,
       password: yassminePassword,
       brandName: "Bazarna",
       representativeName: "Yassmine",

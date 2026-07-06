@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { registerSchema } from "@/lib/validations";
 import { parseJsonBody, withApiHandler } from "@/lib/api-error";
+import { normalizeEmail } from "@/lib/normalize-email";
 
 export async function POST(request: Request) {
   return withApiHandler(async () => {
@@ -16,8 +17,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const existing = await prisma.user.findUnique({
-      where: { email: parsed.data.email },
+    const email = normalizeEmail(parsed.data.email);
+
+    const existing = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
     });
 
     if (existing) {
@@ -34,7 +37,7 @@ export async function POST(request: Request) {
         brandName: parsed.data.brandName,
         representativeName: parsed.data.representativeName,
         boothNumber: parsed.data.boothNumber,
-        email: parsed.data.email,
+        email,
         password: hashedPassword,
         role: "BRAND",
         entranceType: parsed.data.entranceType,
