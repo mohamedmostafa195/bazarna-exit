@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { ensureAllEntranceEvents } from "../lib/event-admin";
 
 const prisma = new PrismaClient();
 
@@ -47,34 +48,9 @@ async function main() {
   });
 
   const today = new Date();
-  const openTime = new Date(today);
-  openTime.setHours(9, 0, 0, 0);
-  const closeTime = new Date(today);
-  closeTime.setHours(23, 0, 0, 0);
 
-  await prisma.event.deleteMany({});
-
-  const bazarnaEvent = await prisma.event.create({
-    data: {
-      eventName: "Bazarna Summer Market 2026",
-      entranceType: "BAZARNA",
-      eventDate: today,
-      queueOpenTime: openTime,
-      queueCloseTime: closeTime,
-      isActive: true,
-    },
-  });
-
-  const byouthEvent = await prisma.event.create({
-    data: {
-      eventName: "Byouth Festival 2026",
-      entranceType: "BYOUTH",
-      eventDate: today,
-      queueOpenTime: openTime,
-      queueCloseTime: closeTime,
-      isActive: true,
-    },
-  });
+  const { bazarna: bazarnaEvent, byouth: byouthEvent } =
+    await ensureAllEntranceEvents();
 
   const brandPassword = await bcrypt.hash("brand123456", 12);
   await prisma.user.upsert({

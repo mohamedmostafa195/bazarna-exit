@@ -17,6 +17,11 @@ export async function GET(request: Request) {
       session!.user.entranceType
     );
 
+    const user = {
+      brandName: session!.user.brandName,
+      boothNumber: session!.user.boothNumber,
+    };
+
     if (!entranceType && session!.user.role === "BRAND") {
       return NextResponse.json(
         {
@@ -34,6 +39,7 @@ export async function GET(request: Request) {
         windowState: "closed" as const,
         entranceType,
         entranceLabel: entranceType ? getEntranceLabel(entranceType) : null,
+        user,
       });
     }
 
@@ -65,10 +71,7 @@ export async function GET(request: Request) {
       ticket,
       entranceType,
       entranceLabel: entranceType ? getEntranceLabel(entranceType) : null,
-      user: {
-        brandName: session!.user.brandName,
-        boothNumber: session!.user.boothNumber,
-      },
+      user,
     });
   }, "GET /api/queue/status");
 }

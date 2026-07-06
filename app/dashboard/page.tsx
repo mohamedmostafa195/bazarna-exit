@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { AppShell } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,15 +34,22 @@ interface QueueData {
 }
 
 export default function DashboardPage() {
+  const { data: session } = useSession();
   const [data, setData] = useState<QueueData | null>(null);
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
   const [currentServing, setCurrentServing] = useState<number | null>(null);
 
   const fetchStatus = useCallback(async () => {
-    const { ok, data } = await fetchApi<QueueData & { error?: string }>(
-      "/api/queue/status"
-    );
+    const { ok, data, status } = await fetchApi<
+      QueueData & { error?: string; needsEntrance?: boolean }
+    >("/api/queue/status");
+
+    if (status === 400 && data.needsEntrance) {
+      window.location.href = "/";
+      return;
+    }
+
     if (ok) {
       setData(data);
       setCurrentServing(data.event?.currentServingNumber ?? null);
@@ -59,23 +67,23 @@ export default function DashboardPage() {
   );
 
   useEffect(() => {
-    if (lastUpdate) {
-      setCurrentServing(lastUpdate.currentServing);
-      if (data?.ticket) {
-        const updated = (lastUpdate.tickets as { queueNumber: number; status: string }[]).find(
-          (t) => t.queueNumber === data.ticket!.queueNumber
+    if (!lastUpdate) return;
+
+    setCurrentServing(lastUpdate.currentServing);
+
+    if (data?.ticket) {
+      const updated = (
+        lastUpdate.tickets as { queueNumber: number; status: string }[]
+      ).find((t) => t.queueNumber === data.ticket!.queueNumber);
+      if (updated) {
+        setData((prev) =>
+          prev?.ticket
+            ? { ...prev, ticket: { ...prev.ticket, status: updated.status } }
+            : prev
         );
-        if (updated) {
-          setData((prev) =>
-            prev?.ticket
-              ? { ...prev, ticket: { ...prev.ticket, status: updated.status } }
-              : prev
-          );
-        }
       }
-      fetchStatus();
     }
-  }, [lastUpdate, data?.ticket, fetchStatus]);
+  }, [lastUpdate, data?.ticket]);
 
   const openTime = data?.event
     ? new Date(data.event.queueOpenTime)
@@ -110,6 +118,9 @@ export default function DashboardPage() {
       ? Math.max(0, data.ticket.queueNumber - currentServing)
       : null;
 
+  const brandName = data?.user?.brandName ?? session?.user?.brandName ?? "Brand";
+  const boothNumber = data?.user?.boothNumber ?? session?.user?.boothNumber ?? "—";
+
   if (loading) {
     return (
       <AppShell>
@@ -125,10 +136,10 @@ export default function DashboardPage() {
       <div className="mx-auto max-w-3xl px-4 py-8">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-            Welcome, {data?.user.brandName}
+            Welcome, {brandName}
           </h1>
           <p className="text-zinc-500">
-            Booth {data?.user.boothNumber}
+            Booth {boothNumber}
             {data?.entranceLabel && ` · ${data.entranceLabel}`}
             {data?.event && ` · ${data.event.eventName}`}
           </p>
@@ -147,7 +158,11 @@ export default function DashboardPage() {
         {!data?.event && (
           <Card>
             <p className="text-center text-zinc-500">
-              No active event at the moment. Please check back later.
+              No active {data?.entranceLabel ?? "exit"} event at the moment.
+            </p>
+            <p className="mt-2 text-center text-sm text-zinc-400">
+              An admin must create an event for {data?.entranceLabel ?? "this exit"} in
+              Settings, or switch using the link above.
             </p>
           </Card>
         )}

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { parseDateOnlyToDb } from "@/lib/datetime";
 import { eventSettingsSchema } from "@/lib/validations";
 import { parseJsonBody, withApiHandler } from "@/lib/api-error";
+import { deactivateSiblingEvents } from "@/lib/event-admin";
 
 function parseEventPayload(body: unknown) {
   const parsed = eventSettingsSchema.safeParse(body);
@@ -82,6 +83,8 @@ export async function POST(request: Request) {
         isActive: true,
       },
     });
+
+    await deactivateSiblingEvents(parsed.data!.entranceType, event.id);
 
     return NextResponse.json({ event }, { status: 201 });
   }, "POST /api/admin/events");

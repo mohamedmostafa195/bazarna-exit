@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { parseDateOnlyToDb } from "@/lib/datetime";
 import { eventSettingsSchema } from "@/lib/validations";
 import { parseJsonBody, withApiHandler } from "@/lib/api-error";
+import { deactivateSiblingEvents } from "@/lib/event-admin";
 
 export async function PATCH(
   request: Request,
@@ -57,6 +58,10 @@ export async function PATCH(
       queueCloseTime,
     },
   });
+
+  if (existing.isActive) {
+    await deactivateSiblingEvents(parsed.data.entranceType, event.id);
+  }
 
     return NextResponse.json({ event });
   }, "PATCH /api/admin/events/[id]");

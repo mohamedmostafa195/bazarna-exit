@@ -44,12 +44,23 @@ export function useSocket(
         return false;
       }
       if (ok) {
+        const event = data.event as { currentServingNumber?: number | null } | undefined;
+        const stats = data.stats as Record<string, unknown> | undefined;
+        const serving =
+          typeof data.currentServing === "number"
+            ? data.currentServing
+            : typeof event?.currentServingNumber === "number"
+              ? event.currentServingNumber
+              : typeof stats?.currentServing === "number"
+                ? stats.currentServing
+                : null;
+
         setLastUpdate({
-          currentServing: (data.currentServing ?? (data.stats as Record<string, unknown>)?.currentServing ?? null) as number | null,
-          upcoming: (data.upcoming ?? (data.stats as Record<string, unknown>)?.upcoming ?? []) as number[],
+          currentServing: serving,
+          upcoming: (data.upcoming ?? stats?.upcoming ?? []) as number[],
           tickets: (data.tickets ?? []) as unknown[],
-          totalWaiting: (data.totalWaiting ?? (data.stats as Record<string, unknown>)?.totalWaiting ?? 0) as number,
-          totalCompleted: (data.totalCompleted ?? (data.stats as Record<string, unknown>)?.totalCompleted ?? 0) as number,
+          totalWaiting: (data.totalWaiting ?? stats?.totalWaiting ?? 0) as number,
+          totalCompleted: (data.totalCompleted ?? stats?.totalCompleted ?? 0) as number,
         });
       }
       return true;
