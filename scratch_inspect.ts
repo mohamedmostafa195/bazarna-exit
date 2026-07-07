@@ -3,25 +3,23 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  const logs = await prisma.actionLog.findMany({
-    where: {
-      eventId: "cmr9at3cu0002mkn7pwlp9pu5"
-    },
-    orderBy: { createdAt: "desc" }
+  const tickets = await prisma.queueTicket.findMany({
+    orderBy: { queueNumber: "asc" },
+    include: { user: true, event: true }
   });
-  console.log("=== BYOUTH EVENT ACTION LOGS ===");
-  console.log(JSON.stringify(logs, null, 2));
+  console.log("=== ALL QUEUE TICKETS ===");
+  console.log(JSON.stringify(tickets.map(t => ({
+    id: t.id,
+    queueNumber: t.queueNumber,
+    brandName: t.user.brandName,
+    entranceType: t.event.entranceType,
+    eventName: t.event.eventName,
+    requestedAt: t.requestedAt
+  })), null, 2));
 
-  const allLogs = await prisma.actionLog.findMany({
-    where: {
-      details: {
-        contains: "Bazarna Summer Market 2026"
-      }
-    },
-    orderBy: { createdAt: "desc" }
-  });
-  console.log("=== BYOUTH EVENT NAME LOGS ===");
-  console.log(JSON.stringify(allLogs, null, 2));
+  const events = await prisma.event.findMany();
+  console.log("=== ALL EVENTS ===");
+  console.log(JSON.stringify(events, null, 2));
 }
 
 main()
