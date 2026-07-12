@@ -54,34 +54,34 @@ export async function POST(request: Request) {
 
     const ticket = result.ticket!;
     const ticketUrl = getTicketUrl(ticket.qrToken);
+    const entranceLabel = isEntranceType(event.entranceType)
+      ? getEntranceLabel(event.entranceType)
+      : "Exit";
 
     const user = await prisma.user.findUnique({ where: { id: ticket.userId } });
-    const eventRecord = await prisma.event.findUnique({
-      where: { id: ticket.eventId },
+    const brandName = user?.brandName ?? session!.user.brandName;
+
+    // Don't block the response — email & logging run in the background.
+    void sendQueueConfirmationEmail({
+      to: session!.user.email!,
+      brandName,
+      queueNumber: ticket.queueNumber,
+      eventName: event.eventName,
+      entranceLabel,
+      ticketUrl,
+    }).catch((emailError) => {
+      console.error("Email send failed (non-fatal):", emailError);
     });
 
-    try {
-      await sendQueueConfirmationEmail({
-        to: session!.user.email!,
-        brandName: user?.brandName ?? session!.user.brandName,
-        queueNumber: ticket.queueNumber,
-        eventName: eventRecord?.eventName ?? event.eventName,
-        entranceLabel: isEntranceType(event.entranceType)
-          ? getEntranceLabel(event.entranceType)
-          : "Exit",
-        ticketUrl,
-      });
-    } catch (emailError) {
-      console.error("Email send failed (non-fatal):", emailError);
-    }
-
-    await logAction({
+    void logAction({
       action: "QUEUE_REQUESTED",
       entranceType: event.entranceType,
       eventId: event.id,
-      brandName: user?.brandName ?? session!.user.brandName,
+      brandName,
       queueNumber: ticket.queueNumber,
-      details: `Requested #${ticket.queueNumber} — ${user?.brandName ?? session!.user.brandName}`,
+      details: `Requested #${ticket.queueNumber} — ${brandName}`,
+    }).catch((logError) => {
+      console.error("Action log failed (non-fatal):", logError);
     });
 
     return NextResponse.json({
@@ -93,6 +93,8 @@ export async function POST(request: Request) {
         requestedAt: ticket.requestedAt,
         ticketUrl,
       },
+      entranceType: event.entranceType,
+      entranceLabel,
     });
   }, "POST /api/queue/request");
 }

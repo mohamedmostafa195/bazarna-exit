@@ -73,6 +73,21 @@ export async function broadcastQueueUpdate(eventId: string) {
   });
 }
 
+const broadcastTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+/** Debounce display updates when many people join at once (250+). */
+export function scheduleQueueBroadcast(eventId: string, delayMs = 300) {
+  const pending = broadcastTimers.get(eventId);
+  if (pending) clearTimeout(pending);
+  broadcastTimers.set(
+    eventId,
+    setTimeout(() => {
+      broadcastTimers.delete(eventId);
+      void broadcastQueueUpdate(eventId);
+    }, delayMs)
+  );
+}
+
 export async function getActiveTicketInOtherEntrance(
   userId: string,
   currentEventId: string
@@ -101,7 +116,7 @@ export async function getActiveTicketInOtherEntrance(
 }
 
 export async function requestQueueNumber(userId: string, eventId: string) {
-  const maxAttempts = 5;
+  const maxAttempts = 10;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
@@ -177,7 +192,11 @@ export async function requestQueueNumber(userId: string, eventId: string) {
 
           return { ticket, error: null };
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted }
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+          maxWait: 15_000,
+          timeout: 20_000,
+        }
       );
 
       if (result.error && result.ticket) {
@@ -187,7 +206,7 @@ export async function requestQueueNumber(userId: string, eventId: string) {
         return { error: result.error, ticket: null };
       }
 
-      await broadcastQueueUpdate(eventId);
+      scheduleQueueBroadcast(eventId);
       return { ticket: result.ticket!, error: null };
     } catch (error) {
       if (

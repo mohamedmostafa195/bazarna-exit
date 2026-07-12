@@ -100,6 +100,7 @@ export default function DashboardPage() {
     const { ok, data } = await fetchApi<{
       error?: string;
       ticket?: { queueNumber: number };
+      entranceLabel?: string;
     }>("/api/queue/request", { method: "POST" });
     setRequesting(false);
 
@@ -109,7 +110,7 @@ export default function DashboardPage() {
       return;
     }
 
-    toast.success(`Your exit number is #${data.ticket!.queueNumber}!`);
+    toast.success(`Your ${data.entranceLabel ?? "exit"} number is #${data.ticket!.queueNumber}!`);
     fetchStatus();
   }
 
