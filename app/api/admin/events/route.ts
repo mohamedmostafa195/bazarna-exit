@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth-helpers";
+import { adminRoute } from "@/lib/admin-route";
 import { prisma } from "@/lib/prisma";
 import { parseDateOnlyToDb } from "@/lib/datetime";
 import { eventSettingsSchema } from "@/lib/validations";
@@ -50,10 +50,7 @@ function parseEventPayload(body: unknown) {
   };
 }
 
-export async function GET(request: Request) {
-  const adminCheck = await requireAdmin(request);
-  if (adminCheck.error) return adminCheck.error;
-
+export const GET = adminRoute(async () => {
   return withApiHandler(async () => {
     const events = await prisma.event.findMany({
       orderBy: { eventDate: "desc" },
@@ -61,12 +58,9 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ events });
   }, "GET /api/admin/events");
-}
+});
 
-export async function POST(request: Request) {
-  const adminCheck = await requireAdmin(request);
-  if (adminCheck.error) return adminCheck.error;
-
+export const POST = adminRoute(async (request) => {
   return withApiHandler(async () => {
     const body = await parseJsonBody(request);
     const parsed = parseEventPayload(body);
@@ -88,4 +82,4 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ event }, { status: 201 });
   }, "POST /api/admin/events");
-}
+});

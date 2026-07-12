@@ -1,18 +1,14 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import type { Session } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { normalizeEmail } from "@/lib/normalize-email";
 
-async function getSession(request?: Request): Promise<Session | null> {
-  if (request) {
-    // NextAuth reads cookies from the Route Handler Request at runtime.
-    return (auth as (req: Request) => Promise<Session | null>)(request);
-  }
-
+async function getSession(_request?: Request): Promise<Session | null> {
   try {
     await headers();
+    await cookies();
   } catch {
     /* not in a request context */
   }
