@@ -11,7 +11,7 @@ import { useSocket, useCountdown } from "@/hooks/use-socket";
 import { formatQueueWindow, formatTime } from "@/lib/utils";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/fetch-api";
-import { Clock, Users, Hash } from "lucide-react";
+import { Clock, Users, Hash, CalendarCheck, RotateCcw } from "lucide-react";
 
 interface QueueData {
   event: {
@@ -30,6 +30,8 @@ interface QueueData {
     requestedAt: string;
   } | null;
   entranceLabel?: string;
+  eventDayPassed?: boolean;
+  queueEndedToday?: boolean;
   user: { brandName: string; boothNumber: string };
 }
 
@@ -169,7 +171,22 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {data?.event && !data.ticket && (
+        {data?.event && data.eventDayPassed && !data.ticket && (
+          <Card className="text-center">
+            <RotateCcw className="mx-auto h-12 w-12 text-orange-500" />
+            <h2 className="mt-4 text-xl font-semibold">Previous event ended</h2>
+            <p className="mt-2 text-zinc-500">
+              Your old exit number was cleared. When the admin opens the next{" "}
+              {data.entranceLabel} event, you can request a new number starting
+              from <strong>#1</strong>.
+            </p>
+            <p className="mt-3 text-sm text-zinc-400">
+              Last event: {data.event.eventName}
+            </p>
+          </Card>
+        )}
+
+        {data?.event && !data.eventDayPassed && !data.ticket && (
           <Card className="text-center">
             <p className="mb-4 rounded-lg bg-orange-50 px-3 py-2 text-sm text-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
               {data.entranceLabel} queue only — numbers here are separate from the
@@ -251,6 +268,30 @@ export default function DashboardPage() {
 
         {data?.ticket && (
           <div className="space-y-6">
+            {data.queueEndedToday && data.ticket.status !== "COMPLETED" && (
+              <Card className="border-orange-200 bg-orange-50 text-center dark:border-orange-900 dark:bg-orange-950/30">
+                <CalendarCheck className="mx-auto h-8 w-8 text-orange-600 dark:text-orange-400" />
+                <p className="mt-2 font-medium text-orange-900 dark:text-orange-100">
+                  Today&apos;s exit queue has closed
+                </p>
+                <p className="mt-1 text-sm text-orange-800 dark:text-orange-200">
+                  Keep your number below until you exit. Tomorrow you will get a
+                  new number for the next event.
+                </p>
+              </Card>
+            )}
+
+            {data.ticket.status === "COMPLETED" && (
+              <Card className="border-green-200 bg-green-50 text-center dark:border-green-900 dark:bg-green-950/30">
+                <CalendarCheck className="mx-auto h-8 w-8 text-green-600 dark:text-green-400" />
+                <p className="mt-2 font-medium text-green-900 dark:text-green-100">
+                  You have completed your exit
+                </p>
+                <p className="mt-1 text-sm text-green-800 dark:text-green-200">
+                  When the next event opens, you can request a fresh exit number.
+                </p>
+              </Card>
+            )}
             <Card className="text-center">
               <p className="text-sm font-semibold uppercase tracking-wide text-orange-600 dark:text-orange-400">
                 {data.entranceLabel} Exit

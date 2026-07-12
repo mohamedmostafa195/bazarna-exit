@@ -74,10 +74,13 @@ export default function AdminAccountsPage() {
       return;
     }
 
-    const typed = prompt(
-      `This will permanently delete ALL ${users.length} brand account(s) and their queue tickets.\n\nType DELETE to confirm:`
-    );
-    if (typed !== "DELETE") return;
+    if (
+      !confirm(
+        `This will permanently delete ALL ${users.length} brand account(s) and their queue tickets.\n\nAre you sure?`
+      )
+    ) {
+      return;
+    }
 
     setDeletingAll(true);
     const { ok, data } = await fetchApi<{ deleted?: number; error?: string }>(

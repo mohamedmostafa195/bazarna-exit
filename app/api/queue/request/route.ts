@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireBrand } from "@/lib/auth-helpers";
-import { getActiveEvent, requestQueueNumber } from "@/lib/queue";
+import { getActiveEventReady } from "@/lib/event-lifecycle";
+import { requestQueueNumber } from "@/lib/queue";
 import { logAction } from "@/lib/action-log";
 import { getQueueWindowState, getTicketUrl } from "@/lib/utils";
 import { sendQueueConfirmationEmail } from "@/lib/email";
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const event = await getActiveEvent(entranceType);
+    const event = await getActiveEventReady(entranceType);
     if (!event) {
       return NextResponse.json({ error: "No active event" }, { status: 404 });
     }

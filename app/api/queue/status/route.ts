@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-helpers";
-import { getActiveEvent } from "@/lib/queue";
 import { getQueueWindowState } from "@/lib/utils";
 import { resolveEntranceType } from "@/lib/entrance-server";
 import { prisma } from "@/lib/prisma";
 import { getEntranceLabel } from "@/lib/entrance";
 import { withApiHandler } from "@/lib/api-error";
+import {
+  getActiveEventReady,
+  isEventDayPassed,
+} from "@/lib/event-lifecycle";
 
 export async function GET(request: Request) {
   return withApiHandler(async () => {
@@ -32,13 +35,15 @@ export async function GET(request: Request) {
       );
     }
 
-    const event = await getActiveEvent(entranceType);
+    const event = await getActiveEventReady(entranceType);
     if (!event) {
       return NextResponse.json({
         event: null,
         windowState: "closed" as const,
         entranceType,
         entranceLabel: entranceType ? getEntranceLabel(entranceType) : null,
+        eventDayPassed: false,
+        queueEndedToday: false,
         user,
       });
     }
@@ -47,6 +52,8 @@ export async function GET(request: Request) {
       event.queueOpenTime,
       event.queueCloseTime
     );
+    const eventDayPassed = isEventDayPassed(event.eventDate);
+    const queueEndedToday = windowState === "closed" && !eventDayPassed;
 
     const ticket = await prisma.queueTicket.findUnique({
       where: {
@@ -71,6 +78,8 @@ export async function GET(request: Request) {
       ticket,
       entranceType,
       entranceLabel: entranceType ? getEntranceLabel(entranceType) : null,
+      eventDayPassed,
+      queueEndedToday,
       user,
     });
   }, "GET /api/queue/status");
