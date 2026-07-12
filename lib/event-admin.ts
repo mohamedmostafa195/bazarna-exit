@@ -41,6 +41,10 @@ export async function ensureActiveEvent(entranceType: EntranceType) {
   }
 
   if (event) {
+    const ticketCount = await prisma.queueTicket.count({
+      where: { eventId: event.id },
+    });
+
     event = await prisma.event.update({
       where: { id: event.id },
       data: {
@@ -48,6 +52,9 @@ export async function ensureActiveEvent(entranceType: EntranceType) {
         queueOpenTime: openTime,
         queueCloseTime: closeTime,
         eventDate: today,
+        ...(ticketCount === 0
+          ? { nextQueueNumber: 1, currentServingNumber: null }
+          : {}),
       },
     });
     await deactivateSiblingEvents(entranceType, event.id);
@@ -67,6 +74,8 @@ export async function ensureActiveEvent(entranceType: EntranceType) {
       queueOpenTime: openTime,
       queueCloseTime: closeTime,
       isActive: true,
+      nextQueueNumber: 1,
+      currentServingNumber: null,
     },
   });
 }

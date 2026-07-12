@@ -116,12 +116,20 @@ export async function getActiveTicketInOtherEntrance(
 }
 
 export async function requestQueueNumber(userId: string, eventId: string) {
-  const maxAttempts = 10;
+  const maxAttempts = 25;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
       const result = await prisma.$transaction(
         async (tx) => {
+          // Lock the event row first so 250+ simultaneous clicks get #1, #2, #3… in order.
+          const locked = await tx.$queryRaw<{ id: string }[]>`
+            SELECT id FROM events WHERE id = ${eventId} FOR UPDATE
+          `;
+          if (!locked.length) {
+            return { error: "Event not found", ticket: null };
+          }
+
           const existing = await tx.queueTicket.findUnique({
             where: { userId_eventId: { userId, eventId } },
           });
@@ -165,15 +173,17 @@ export async function requestQueueNumber(userId: string, eventId: string) {
             }
           }
 
-          // Lock the event row so concurrent requests are serialized.
-          await tx.$executeRaw`SELECT id FROM events WHERE id = ${eventId} FOR UPDATE`;
-
-          const event = await tx.event.update({
-            where: { id: eventId },
-            data: { nextQueueNumber: { increment: 1 } },
-            select: { nextQueueNumber: true },
+          const { _max } = await tx.queueTicket.aggregate({
+            where: { eventId },
+            _max: { queueNumber: true },
           });
-          const queueNumber = event.nextQueueNumber - 1;
+          const queueNumber = (_max.queueNumber ?? 0) + 1;
+
+          await tx.event.update({
+            where: { id: eventId },
+            data: { nextQueueNumber: queueNumber + 1 },
+          });
+
           const qrToken = randomBytes(24).toString("hex");
 
           const ticket = await tx.queueTicket.create({
@@ -194,8 +204,8 @@ export async function requestQueueNumber(userId: string, eventId: string) {
         },
         {
           isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
-          maxWait: 15_000,
-          timeout: 20_000,
+          maxWait: 20_000,
+          timeout: 30_000,
         }
       );
 

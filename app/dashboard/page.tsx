@@ -96,6 +96,7 @@ export default function DashboardPage() {
   );
 
   async function handleRequestNumber() {
+    if (requesting) return;
     setRequesting(true);
     const { ok, data } = await fetchApi<{
       error?: string;

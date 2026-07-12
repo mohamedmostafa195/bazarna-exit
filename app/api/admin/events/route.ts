@@ -75,6 +75,8 @@ export const POST = adminRoute(async (request) => {
       data: {
         ...parsed.data!,
         isActive: true,
+        nextQueueNumber: 1,
+        currentServingNumber: null,
       },
     });
 
