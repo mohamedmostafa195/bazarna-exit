@@ -50,8 +50,8 @@ function parseEventPayload(body: unknown) {
   };
 }
 
-export async function GET() {
-  const adminCheck = await requireAdmin();
+export async function GET(request: Request) {
+  const adminCheck = await requireAdmin(request);
   if (adminCheck.error) return adminCheck.error;
 
   return withApiHandler(async () => {
@@ -64,7 +64,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const adminCheck = await requireAdmin();
+  const adminCheck = await requireAdmin(request);
   if (adminCheck.error) return adminCheck.error;
 
   return withApiHandler(async () => {

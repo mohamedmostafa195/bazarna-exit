@@ -7,7 +7,7 @@ import { parseJsonBody, withApiHandler } from "@/lib/api-error";
 
 export async function POST(request: Request) {
   return withApiHandler(async () => {
-    const { session, error } = await requireAdmin();
+    const { session, error } = await requireAdmin(request);
     if (error) return error;
 
     const body = await parseJsonBody<{ qrToken?: string }>(request);
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   return withApiHandler(async () => {
-    const { error } = await requireAdmin();
+    const { error } = await requireAdmin(request);
     if (error) return error;
 
     const { searchParams } = new URL(request.url);

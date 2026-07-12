@@ -9,7 +9,7 @@ import { withApiHandler } from "@/lib/api-error";
 
 export async function GET(request: Request) {
   return withApiHandler(async () => {
-    const { session, error } = await requireAuth();
+    const { session, error } = await requireAuth(request);
     if (error) return error;
 
     const entranceType = await resolveEntranceType(

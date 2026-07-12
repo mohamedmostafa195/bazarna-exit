@@ -4,9 +4,9 @@ import { logAction } from "@/lib/action-log";
 import { prisma } from "@/lib/prisma";
 import { parseJsonBody, withApiHandler } from "@/lib/api-error";
 
-export async function GET() {
+export async function GET(request: Request) {
   return withApiHandler(async () => {
-    const { error } = await requireAdmin();
+    const { error } = await requireAdmin(request);
     if (error) return error;
 
     const users = await prisma.user.findMany({
@@ -42,7 +42,7 @@ export async function GET() {
 
 export async function DELETE(request: Request) {
   return withApiHandler(async () => {
-    const { session, error } = await requireAdmin();
+    const { session, error } = await requireAdmin(request);
     if (error) return error;
 
     const body = await parseJsonBody<{ confirm?: string }>(request).catch(

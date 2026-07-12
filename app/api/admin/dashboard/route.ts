@@ -6,7 +6,7 @@ import { withApiHandler } from "@/lib/api-error";
 
 export async function GET(request: Request) {
   return withApiHandler(async () => {
-    const { error } = await requireAdmin();
+    const { error } = await requireAdmin(request);
     if (error) return error;
 
   const entranceType = getEntranceFromRequest(request) ?? "BAZARNA";

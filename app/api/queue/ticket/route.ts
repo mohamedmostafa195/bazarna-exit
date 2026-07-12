@@ -6,7 +6,7 @@ import { withApiHandler } from "@/lib/api-error";
 
 export async function DELETE(request: Request) {
   return withApiHandler(async () => {
-    const { session, error } = await requireBrand();
+    const { session, error } = await requireBrand(request);
     if (error) return error;
 
     const entranceType = await resolveEntranceType(

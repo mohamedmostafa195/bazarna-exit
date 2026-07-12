@@ -5,11 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { withApiHandler } from "@/lib/api-error";
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   return withApiHandler(async () => {
-    const { session, error } = await requireAdmin();
+    const { session, error } = await requireAdmin(request);
     if (error) return error;
 
     const { id } = await params;

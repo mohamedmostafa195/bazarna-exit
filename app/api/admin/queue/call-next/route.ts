@@ -8,7 +8,7 @@ import { withApiHandler } from "@/lib/api-error";
 
 export async function POST(request: Request) {
   return withApiHandler(async () => {
-    const { session, error } = await requireAdmin();
+    const { session, error } = await requireAdmin(request);
     if (error) return error;
 
     const entranceType = getEntranceFromRequest(request) ?? "BAZARNA";

@@ -1,10 +1,16 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
+import type { Session } from "next-auth";
 import { prisma } from "@/lib/prisma";
+import { normalizeEmail } from "@/lib/normalize-email";
 
-async function getSession() {
-  // Required in Next.js 15+ Route Handlers so auth() can read session cookies.
+async function getSession(request?: Request): Promise<Session | null> {
+  if (request) {
+    // NextAuth reads cookies from the Route Handler Request at runtime.
+    return (auth as (req: Request) => Promise<Session | null>)(request);
+  }
+
   try {
     await headers();
   } catch {
@@ -13,62 +19,84 @@ async function getSession() {
   return auth();
 }
 
-export async function requireAuth() {
-  const session = await getSession();
+export async function requireAuth(request?: Request) {
+  const session = await getSession(request);
   if (!session?.user) {
-    return { session: null, error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+    return {
+      session: null,
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    };
   }
   return { session, error: null };
 }
 
-async function resolveUserRole(userId: string, sessionRole?: string | null) {
-  let dbRole: string | null = null;
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
-    dbRole = user?.role?.toUpperCase() ?? null;
-  } catch {
-    /* fall back to session role */
-  }
-
-  // Database is source of truth (fixes stale JWT after seed / role change).
-  if (dbRole === "ADMIN") return "ADMIN";
-
+async function resolveUserRole(
+  userId: string,
+  sessionRole?: string | null,
+  email?: string | null
+) {
   const normalized = sessionRole?.toUpperCase();
-  if (normalized === "ADMIN" || normalized === "BRAND") {
-    return normalized;
+  if (normalized === "ADMIN") return "ADMIN";
+
+  try {
+    let dbRole: string | null = null;
+
+    if (userId) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+      dbRole = user?.role?.toUpperCase() ?? null;
+    } else if (email) {
+      const user = await prisma.user.findFirst({
+        where: {
+          email: { equals: normalizeEmail(email), mode: "insensitive" },
+        },
+        select: { role: true },
+      });
+      dbRole = user?.role?.toUpperCase() ?? null;
+    }
+
+    if (dbRole === "ADMIN") return "ADMIN";
+    if (dbRole === "BRAND") return "BRAND";
+  } catch {
+    /* fall back to session role when database is unavailable */
   }
 
-  return dbRole;
+  if (normalized === "BRAND") return "BRAND";
+  return null;
 }
 
-export async function requireAdmin() {
-  const result = await requireAuth();
+export async function requireAdmin(request?: Request) {
+  const result = await requireAuth(request);
   if (result.error) return result;
 
   const role = await resolveUserRole(
     result.session!.user.id,
-    result.session!.user.role
+    result.session!.user.role,
+    result.session!.user.email
   );
 
   if (role !== "ADMIN") {
     return {
       session: null,
-      error: NextResponse.json({ error: "Admin access required" }, { status: 403 }),
+      error: NextResponse.json(
+        { error: "Admin access required" },
+        { status: 403 }
+      ),
     };
   }
   return result;
 }
 
-export async function requireBrand() {
-  const result = await requireAuth();
+export async function requireBrand(request?: Request) {
+  const result = await requireAuth(request);
   if (result.error) return result;
 
   const role = await resolveUserRole(
     result.session!.user.id,
-    result.session!.user.role
+    result.session!.user.role,
+    result.session!.user.email
   );
 
   if (role !== "BRAND") {
