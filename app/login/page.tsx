@@ -34,7 +34,7 @@ export default function LoginPage() {
 
     toast.success("Welcome back!");
     await fetchApi("/api/entrance", { method: "DELETE" });
-    router.push("/");
+    router.replace("/");
     router.refresh();
   }
 

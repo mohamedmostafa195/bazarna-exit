@@ -37,7 +37,7 @@ export default function RegisterPage() {
     }
 
     toast.success("Account created! Please sign in.");
-    router.push("/login");
+    router.replace("/login");
   }
 
   return (

@@ -38,7 +38,7 @@ export function EntranceSelector() {
     await update({ entranceType });
 
     const isAdmin = session?.user?.role === "ADMIN";
-    router.push(isAdmin ? "/admin/dashboard" : "/dashboard");
+    router.replace(isAdmin ? "/admin/dashboard" : "/dashboard");
     router.refresh();
   }
 

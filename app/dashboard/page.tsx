@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ interface QueueData {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { data: session } = useSession();
   const [data, setData] = useState<QueueData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -151,7 +153,7 @@ export default function DashboardPage() {
             type="button"
             onClick={async () => {
               await fetchApi("/api/entrance", { method: "DELETE" });
-              window.location.href = "/";
+              router.push("/select-entrance");
             }}
             className="mt-1 text-sm text-orange-600 hover:underline dark:text-orange-400"
           >

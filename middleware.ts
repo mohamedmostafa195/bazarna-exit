@@ -16,16 +16,32 @@ export default auth((req) => {
   const cookieEntrance = req.cookies.get(ENTRANCE_COOKIE)?.value;
   const hasEntrance = isEntranceType(cookieEntrance);
 
+  const isAuthRoute = path === "/login" || path === "/register";
+  const isSelectEntranceRoute = path === "/select-entrance";
   const isAdminRoute =
     path.startsWith("/admin") || path.startsWith("/settings");
   const isBrandRoute = path.startsWith("/dashboard");
+
+  if (isAuthRoute) {
+    if (isLoggedIn) {
+      return redirectTo("/", req);
+    }
+    return NextResponse.next();
+  }
+
+  if (isSelectEntranceRoute) {
+    if (!isLoggedIn) {
+      return redirectTo("/login", req);
+    }
+    return NextResponse.next();
+  }
 
   if (isAdminRoute || isBrandRoute) {
     if (!isLoggedIn) {
       return redirectTo("/login", req);
     }
     if (!hasEntrance) {
-      return redirectTo("/", req);
+      return redirectTo("/select-entrance", req);
     }
   }
 
@@ -42,6 +58,10 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
+    "/",
+    "/login",
+    "/register",
+    "/select-entrance",
     "/dashboard",
     "/dashboard/:path*",
     "/admin",
