@@ -39,6 +39,23 @@ export async function POST(request: Request) {
       );
     }
 
+    let finalBoothNumber = boothNumber;
+
+    // Strict validation for Byouth: must be number + Y (e.g. 1Y, 14Y, 105Y)
+    if (entranceType === "BYOUTH") {
+      const byouthPattern = /^(\d+)[yY]$/;
+      const match = boothNumber.match(byouthPattern);
+      if (!match) {
+        return NextResponse.json(
+          {
+            error: "For Byouth exit, booth number must be a number followed by Y (e.g. 1Y, 10Y, 20Y)",
+          },
+          { status: 400 }
+        );
+      }
+      finalBoothNumber = `${match[1]}Y`;
+    }
+
     const event = await getActiveEventReady(entranceType);
     if (!event) {
       return NextResponse.json({ error: "No active event" }, { status: 404 });
@@ -72,7 +89,7 @@ export async function POST(request: Request) {
         userId: { not: session!.user.id },
         user: {
           boothNumber: {
-            equals: boothNumber,
+            equals: finalBoothNumber,
             mode: "insensitive",
           },
         },
@@ -83,7 +100,7 @@ export async function POST(request: Request) {
     if (duplicateBooth) {
       return NextResponse.json(
         {
-          error: `Booth number "${boothNumber}" is already used by "${duplicateBooth.user.brandName}". Please enter your correct booth number.`,
+          error: `Booth number "${finalBoothNumber}" is already used by "${duplicateBooth.user.brandName}". Please enter your correct booth number.`,
         },
         { status: 409 }
       );
@@ -92,7 +109,7 @@ export async function POST(request: Request) {
     // Update the brand user's booth number in DB for this event
     await prisma.user.update({
       where: { id: session!.user.id },
-      data: { boothNumber },
+      data: { boothNumber: finalBoothNumber },
     });
 
     const windowState = getQueueWindowState(
@@ -104,7 +121,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Queue is not open" }, { status: 403 });
     }
 
-    const result = await requestQueueNumber(session!.user.id, event.id, boothNumber);
+    const result = await requestQueueNumber(session!.user.id, event.id, finalBoothNumber);
 
     if (result.error) {
       if (result.ticket) {
@@ -143,7 +160,7 @@ export async function POST(request: Request) {
       eventId: event.id,
       brandName,
       queueNumber: ticket.queueNumber,
-      details: `Requested #${ticket.queueNumber} — ${brandName} (Booth ${boothNumber})`,
+      details: `Requested #${ticket.queueNumber} — ${brandName} (Booth ${finalBoothNumber})`,
     }).catch((logError) => {
       console.error("Action log failed (non-fatal):", logError);
     });

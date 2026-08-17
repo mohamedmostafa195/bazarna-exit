@@ -19,7 +19,7 @@ import {
   getEntranceLabel,
   isEntranceType,
 } from "@/lib/entrance";
-import { Clock, Users, Hash, CalendarCheck, RotateCcw } from "lucide-react";
+import { Clock, Users, Hash, CalendarCheck, RotateCcw, CheckCircle2, AlertCircle } from "lucide-react";
 
 interface QueueData {
   event: {
@@ -130,6 +130,12 @@ export default function DashboardPage() {
       toast.error("Please enter your booth number first");
       return;
     }
+
+    if (currentEntrance === "BYOUTH" && !/^\d+[yY]$/.test(trimmedBooth)) {
+      toast.error("For Byouth exit, booth number must be a number followed by Y (e.g. 1Y, 10Y, 20Y)");
+      return;
+    }
+
     if (requesting) return;
     setRequesting(true);
     const { ok, data } = await fetchApi<{
@@ -380,54 +386,92 @@ export default function DashboardPage() {
               </>
             )}
 
-            {data.windowState === "open" && (
-              <div className="mx-auto max-w-sm">
-                <Hash className="mx-auto h-12 w-12 text-orange-500" />
-                <h2 className="mt-4 text-xl font-semibold">
-                  Queue is now open!
-                </h2>
-                <p className="mt-1 text-sm text-zinc-500">
-                  Enter your booth number for this event to get your exit number
-                </p>
+            {data.windowState === "open" && (() => {
+              const trimmed = boothNumberInput.trim();
+              const isByouth = currentEntrance === "BYOUTH";
+              const isByouthValid = isByouth && /^\d+[yY]$/.test(trimmed);
+              const isByouthInvalid = isByouth && trimmed.length > 0 && !isByouthValid;
+              const isBoothValid = isByouth ? isByouthValid : trimmed.length > 0;
 
-                <div className="mt-6 text-left">
-                  <label
-                    htmlFor="booth-number"
-                    className="block text-sm font-semibold text-zinc-800 dark:text-zinc-200"
-                  >
-                    Your Booth Number <span className="text-red-500">*</span>
-                  </label>
-                  <div className="mt-1.5">
-                    <input
-                      id="booth-number"
-                      type="text"
-                      placeholder={
-                        currentEntrance === "BYOUTH"
-                          ? "e.g. 1Y, 10Y, 20Y"
-                          : "e.g. 14A, 1B, 13C"
-                      }
-                      value={boothNumberInput}
-                      onChange={(e) => setBoothNumberInput(e.target.value)}
-                      className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-center text-lg font-bold tracking-wide text-zinc-900 placeholder:text-sm placeholder:font-normal placeholder:text-zinc-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500"
-                      required
-                    />
-                  </div>
-                  <p className="mt-1.5 text-center text-xs text-zinc-400">
-                    Make sure your booth number is accurate before requesting.
+              return (
+                <div className="mx-auto max-w-sm">
+                  <Hash className="mx-auto h-12 w-12 text-orange-500" />
+                  <h2 className="mt-4 text-xl font-semibold">
+                    Queue is now open!
+                  </h2>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    Enter your booth number for this event to get your exit number
                   </p>
-                </div>
 
-                <Button
-                  className="mt-6 w-full"
-                  size="lg"
-                  loading={requesting}
-                  disabled={!boothNumberInput.trim()}
-                  onClick={handleRequestNumber}
-                >
-                  Get My Exit Number
-                </Button>
-              </div>
-            )}
+                  <div className="mt-6 text-left">
+                    <label
+                      htmlFor="booth-number"
+                      className="block text-sm font-semibold text-zinc-800 dark:text-zinc-200"
+                    >
+                      Your Booth Number <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative mt-1.5">
+                      <input
+                        id="booth-number"
+                        type="text"
+                        placeholder={
+                          isByouth
+                            ? "e.g. 1Y, 10Y, 20Y"
+                            : "e.g. 14A, 1B, 13C"
+                        }
+                        value={boothNumberInput}
+                        onChange={(e) => setBoothNumberInput(e.target.value)}
+                        className={`w-full rounded-xl border bg-white px-4 py-3 text-center text-lg font-bold tracking-wide text-zinc-900 transition-all placeholder:text-sm placeholder:font-normal placeholder:text-zinc-400 focus:outline-none dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500 ${
+                          isByouthValid
+                            ? "border-emerald-500 bg-emerald-50/20 ring-2 ring-emerald-500/20 focus:border-emerald-500 dark:border-emerald-500 dark:bg-emerald-950/20"
+                            : isByouthInvalid
+                            ? "border-red-400 bg-red-50/20 ring-2 ring-red-500/20 focus:border-red-500 dark:border-red-500 dark:bg-red-950/20"
+                            : "border-zinc-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700"
+                        }`}
+                        required
+                      />
+                      {isByouthValid && (
+                        <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                          <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                        </div>
+                      )}
+                    </div>
+
+                    {isByouth ? (
+                      isByouthValid ? (
+                        <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Valid booth format ({trimmed.toUpperCase()})
+                        </p>
+                      ) : isByouthInvalid ? (
+                        <p className="mt-2 flex items-center justify-center gap-1 text-center text-xs font-medium text-red-500 dark:text-red-400">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                          Must be a number followed by Y (e.g. 1Y, 10Y, 20Y)
+                        </p>
+                      ) : (
+                        <p className="mt-1.5 text-center text-xs text-zinc-400">
+                          Must be a number followed by Y (e.g. 1Y, 10Y, 20Y)
+                        </p>
+                      )
+                    ) : (
+                      <p className="mt-1.5 text-center text-xs text-zinc-400">
+                        Make sure your booth number is accurate before requesting.
+                      </p>
+                    )}
+                  </div>
+
+                  <Button
+                    className="mt-6 w-full"
+                    size="lg"
+                    loading={requesting}
+                    disabled={!isBoothValid}
+                    onClick={handleRequestNumber}
+                  >
+                    Get My Exit Number
+                  </Button>
+                </div>
+              );
+            })()}
 
             {data.windowState === "closed" && (
               <>
