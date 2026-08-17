@@ -3,21 +3,27 @@ import { InputHTMLAttributes, forwardRef } from "react";
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
+  rightLabel?: React.ReactNode;
   error?: string;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, id, ...props }, ref) => {
+  ({ className, label, rightLabel, error, id, ...props }, ref) => {
     const inputId = id ?? label?.toLowerCase().replace(/\s+/g, "-");
     return (
       <div className="space-y-1.5">
-        {label && (
-          <label
-            htmlFor={inputId}
-            className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
-          >
-            {label}
-          </label>
+        {(label || rightLabel) && (
+          <div className="flex items-center justify-between">
+            {label && (
+              <label
+                htmlFor={inputId}
+                className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+              >
+                {label}
+              </label>
+            )}
+            {rightLabel}
+          </div>
         )}
         <input
           ref={ref}

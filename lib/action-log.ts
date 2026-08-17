@@ -9,6 +9,8 @@ export const ACTION_TYPES = [
   "COMPLETED",
   "CHECKOUT",
   "QUEUE_RESET",
+  "PASSWORD_RESET_REQUESTED",
+  "PASSWORD_RESET_COMPLETED",
 ] as const;
 
 export type ActionType = (typeof ACTION_TYPES)[number];
@@ -31,6 +33,8 @@ const ACTION_LABELS: Record<ActionType, string> = {
   COMPLETED: "Completed",
   CHECKOUT: "Checked out",
   QUEUE_RESET: "Queue reset",
+  PASSWORD_RESET_REQUESTED: "Password reset requested",
+  PASSWORD_RESET_COMPLETED: "Password reset completed",
 };
 
 export const ACTION_DESCRIPTIONS: Record<ActionType, string> = {
@@ -41,6 +45,8 @@ export const ACTION_DESCRIPTIONS: Record<ActionType, string> = {
   COMPLETED: "Brand finished exit checkout",
   CHECKOUT: "Brand checked out via QR scanner",
   QUEUE_RESET: "All queue numbers were cleared",
+  PASSWORD_RESET_REQUESTED: "A brand requested a password reset link",
+  PASSWORD_RESET_COMPLETED: "A brand successfully reset their password",
 };
 
 const ACTION_COLORS: Record<ActionType, string> = {
@@ -51,6 +57,8 @@ const ACTION_COLORS: Record<ActionType, string> = {
   COMPLETED: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
   CHECKOUT: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
   QUEUE_RESET: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+  PASSWORD_RESET_REQUESTED: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
+  PASSWORD_RESET_COMPLETED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
 };
 
 export function getActionLabel(action: string): string {
