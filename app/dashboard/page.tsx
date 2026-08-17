@@ -401,7 +401,11 @@ export default function DashboardPage() {
                     <input
                       id="booth-number"
                       type="text"
-                      placeholder="e.g. 14A, 1B, 13C"
+                      placeholder={
+                        currentEntrance === "BYOUTH"
+                          ? "e.g. 1Y, 10Y, 20Y"
+                          : "e.g. 14A, 1B, 13C"
+                      }
                       value={boothNumberInput}
                       onChange={(e) => setBoothNumberInput(e.target.value)}
                       className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-center text-lg font-bold tracking-wide text-zinc-900 placeholder:text-sm placeholder:font-normal placeholder:text-zinc-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500"
