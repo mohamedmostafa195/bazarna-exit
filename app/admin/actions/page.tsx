@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,19 +62,24 @@ export default function AdminActionsPage() {
   const [filter, setFilter] = useState("all");
   const [logs, setLogs] = useState<ActionItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const activeEntranceRef = useRef<string>("all");
+
+  activeEntranceRef.current = showAll ? "all" : entrance;
 
   const fetchLogs = useCallback(async () => {
+    const targetEntrance = activeEntranceRef.current;
     const params = new URLSearchParams({
       page: "1",
       limit: "50",
-      entrance: showAll ? "all" : entrance,
+      entrance: targetEntrance,
     });
     const { ok, data } = await fetchApi<{ logs: ActionItem[] }>(
       `/api/admin/actions?${params}`
     );
+    if (activeEntranceRef.current !== targetEntrance) return;
     if (ok) setLogs(data.logs);
     setLoading(false);
-  }, [entrance, showAll]);
+  }, []);
 
   useEffect(() => {
     fetchLogs();

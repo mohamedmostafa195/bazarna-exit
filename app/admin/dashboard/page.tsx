@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,31 +32,63 @@ export default function AdminDashboardPage() {
   const [data, setData] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [entrance, setEntrance] = useState<EntranceType>("BAZARNA");
+  const activeEntranceRef = useRef<EntranceType>("BAZARNA");
 
-  const fetchData = useCallback(async () => {
+  const loadData = useCallback(async (targetEntrance: EntranceType) => {
     const { ok, data } = await fetchApi<DashboardStats>(
-      `/api/admin/dashboard?entrance=${entrance}`
+      `/api/admin/dashboard?entrance=${targetEntrance}`
     );
-    if (ok) setData(data);
+    // Discard response if user already switched to another entrance tab
+    if (activeEntranceRef.current !== targetEntrance) return;
+    if (ok) {
+      setData(data);
+    }
     setLoading(false);
-  }, [entrance]);
-
-  useEffect(() => {
-    fetchApi<{ entranceType?: EntranceType }>("/api/entrance").then(({ data }) => {
-      if (data.entranceType) setEntrance(data.entranceType);
-    });
   }, []);
 
+  // Initial load: resolve cookie entrance first to prevent mount flicker
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    let isSubscribed = true;
+    fetchApi<{ entranceType?: EntranceType }>("/api/entrance").then(({ data }) => {
+      if (!isSubscribed) return;
+      const initial = data.entranceType ?? "BAZARNA";
+      setEntrance(initial);
+      activeEntranceRef.current = initial;
+      loadData(initial);
+    });
+    return () => {
+      isSubscribed = false;
+    };
+  }, [loadData]);
+
+  // Tab change handler: instantaneous state update + fast direct fetch
+  const handleEntranceChange = useCallback(
+    (newEntrance: EntranceType) => {
+      if (newEntrance === activeEntranceRef.current) return;
+      setEntrance(newEntrance);
+      activeEntranceRef.current = newEntrance;
+
+      // Immediately fetch for selected tab
+      loadData(newEntrance);
+
+      // Persist in cookie in background
+      fetchApi("/api/entrance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entranceType: newEntrance }),
+      });
+    },
+    [loadData]
+  );
 
   const pollUrl = `/api/admin/dashboard?entrance=${entrance}`;
   const { lastUpdate } = useSocket(data?.event?.id ?? null, pollUrl);
 
   useEffect(() => {
-    if (lastUpdate) fetchData();
-  }, [lastUpdate, fetchData]);
+    if (lastUpdate && !loading) {
+      loadData(activeEntranceRef.current);
+    }
+  }, [lastUpdate, loading, loadData]);
 
   if (loading) {
     return (
@@ -92,14 +124,7 @@ export default function AdminDashboardPage() {
 
         <EntranceTabs
           value={entrance}
-          onChange={(type) => {
-            setEntrance(type);
-            fetch("/api/entrance", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ entranceType: type }),
-            });
-          }}
+          onChange={handleEntranceChange}
           className="mb-6 max-w-md"
         />
 

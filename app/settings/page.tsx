@@ -78,14 +78,17 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    fetchEvents().then((allEvents) => {
+    Promise.all([
+      fetchEvents(),
+      fetchApi<{ entranceType?: EntranceType }>("/api/entrance"),
+    ]).then(([allEvents, entranceRes]) => {
+      const initialEntrance = entranceRes.data.entranceType ?? "BAZARNA";
       setEvents(allEvents);
-      loadFormForEntrance(allEvents, entrance);
+      setEntrance(initialEntrance);
+      loadFormForEntrance(allEvents, initialEntrance);
       setLoading(false);
     });
-    // Only load once on mount; entrance changes use cached events
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchEvents, loadFormForEntrance]);
 
   function handleEntranceChange(type: EntranceType) {
     setEntrance(type);

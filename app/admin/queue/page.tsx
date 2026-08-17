@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,44 +35,90 @@ export default function AdminQueuePage() {
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [entrance, setEntrance] = useState<EntranceType>("BAZARNA");
+  const activeEntranceRef = useRef<EntranceType>("BAZARNA");
 
-  const fetchQueue = useCallback(async () => {
-    const params = new URLSearchParams({
-      page: String(page),
-      limit: "20",
-      search,
-      status: statusFilter,
-      entrance,
-    });
-    const { ok, data } = await fetchApi<{
-      tickets: Ticket[];
-      event?: { id: string };
-      pagination: { total: number; totalPages: number };
-    }>(`/api/admin/queue?${params}`);
-    if (ok) {
-      setTickets(data.tickets);
-      setEventId(data.event?.id ?? null);
-      setPagination(data.pagination);
-    }
-    setLoading(false);
-  }, [page, search, statusFilter, entrance]);
+  const loadQueue = useCallback(
+    async (
+      targetEntrance: EntranceType,
+      targetPage = page,
+      targetSearch = search,
+      targetFilter = statusFilter
+    ) => {
+      const params = new URLSearchParams({
+        page: String(targetPage),
+        limit: "20",
+        search: targetSearch,
+        status: targetFilter,
+        entrance: targetEntrance,
+      });
+      const { ok, data } = await fetchApi<{
+        tickets: Ticket[];
+        event?: { id: string };
+        pagination: { total: number; totalPages: number };
+      }>(`/api/admin/queue?${params}`);
+      // Discard response if user already switched tabs
+      if (activeEntranceRef.current !== targetEntrance) return;
+      if (ok) {
+        setTickets(data.tickets);
+        setEventId(data.event?.id ?? null);
+        setPagination(data.pagination);
+      }
+      setLoading(false);
+    },
+    [page, search, statusFilter]
+  );
 
+  // Initial load: resolve cookie entrance first to prevent mount flicker
   useEffect(() => {
+    let isSubscribed = true;
     fetchApi<{ entranceType?: EntranceType }>("/api/entrance").then(({ data }) => {
-      if (data.entranceType) setEntrance(data.entranceType);
+      if (!isSubscribed) return;
+      const initial = data.entranceType ?? "BAZARNA";
+      setEntrance(initial);
+      activeEntranceRef.current = initial;
+      loadQueue(initial);
     });
-  }, []);
+    return () => {
+      isSubscribed = false;
+    };
+  }, [loadQueue]);
 
+  // Tab change handler: instant state update + fast direct fetch
+  const handleEntranceChange = useCallback(
+    (newEntrance: EntranceType) => {
+      if (newEntrance === activeEntranceRef.current) return;
+      setEntrance(newEntrance);
+      activeEntranceRef.current = newEntrance;
+      setPage(1);
+
+      // Immediately fetch for new tab
+      loadQueue(newEntrance, 1);
+
+      // Persist in cookie in background
+      fetchApi("/api/entrance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entranceType: newEntrance }),
+      });
+    },
+    [loadQueue]
+  );
+
+  // Re-fetch when page, search, or statusFilter changes
   useEffect(() => {
-    fetchQueue();
-  }, [fetchQueue]);
+    if (!loading) {
+      loadQueue(activeEntranceRef.current, page, search, statusFilter);
+    }
+  }, [page, search, statusFilter, loading, loadQueue]);
 
   const pollUrl = `/api/admin/queue?entrance=${entrance}`;
   const { lastUpdate } = useSocket(eventId, pollUrl);
 
   useEffect(() => {
-    if (lastUpdate) fetchQueue();
-  }, [lastUpdate, fetchQueue]);
+    if (lastUpdate && !loading) {
+      loadQueue(activeEntranceRef.current, page, search, statusFilter);
+    }
+  }, [lastUpdate, loading, loadQueue, page, search, statusFilter]);
 
   async function adminAction(
     endpoint: string,
@@ -81,7 +127,7 @@ export default function AdminQueuePage() {
   ) {
     setActionLoading(endpoint);
     const { ok, data } = await fetchApi<{ error?: string }>(
-      `${endpoint}?entrance=${entrance}`,
+      `${endpoint}?entrance=${activeEntranceRef.current}`,
       {
         method: "POST",
         headers: body ? { "Content-Type": "application/json" } : undefined,
@@ -96,7 +142,7 @@ export default function AdminQueuePage() {
     }
 
     toast.success(label ?? "Action completed");
-    fetchQueue();
+    loadQueue(activeEntranceRef.current, page, search, statusFilter);
   }
 
   if (loading) {
@@ -116,15 +162,7 @@ export default function AdminQueuePage() {
 
         <EntranceTabs
           value={entrance}
-          onChange={(type) => {
-            setEntrance(type);
-            setPage(1);
-            fetch("/api/entrance", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ entranceType: type }),
-            });
-          }}
+          onChange={handleEntranceChange}
           className="mb-6 max-w-md"
         />
 
