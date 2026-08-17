@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { AppShell } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,12 @@ import { useSocket, useCountdown } from "@/hooks/use-socket";
 import { formatQueueWindow, formatTime } from "@/lib/utils";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/fetch-api";
+import {
+  type EntranceType,
+  getEntranceImage,
+  getEntranceLabel,
+  isEntranceType,
+} from "@/lib/entrance";
 import { Clock, Users, Hash, CalendarCheck, RotateCcw } from "lucide-react";
 
 interface QueueData {
@@ -30,6 +37,7 @@ interface QueueData {
     qrToken: string;
     requestedAt: string;
   } | null;
+  entranceType?: "BAZARNA" | "BYOUTH";
   entranceLabel?: string;
   eventDayPassed?: boolean;
   queueEndedToday?: boolean;
@@ -126,6 +134,16 @@ export default function DashboardPage() {
 
   const brandName = data?.user?.brandName ?? session?.user?.brandName ?? "Brand";
   const boothNumber = data?.user?.boothNumber ?? session?.user?.boothNumber ?? "—";
+  const currentEntrance: EntranceType | null =
+    data?.entranceType && isEntranceType(data.entranceType)
+      ? data.entranceType
+      : session?.user?.entranceType && isEntranceType(session.user.entranceType)
+      ? session.user.entranceType
+      : data?.entranceLabel === "Byouth"
+      ? "BYOUTH"
+      : data?.entranceLabel === "Bazarna"
+      ? "BAZARNA"
+      : null;
 
   if (loading) {
     return (
@@ -140,25 +158,54 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-3xl px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-            Welcome, {brandName}
-          </h1>
-          <p className="text-zinc-500">
-            Booth {boothNumber}
-            {data?.entranceLabel && ` · ${data.entranceLabel}`}
-            {data?.event && ` · ${data.event.eventName}`}
-          </p>
-          <button
-            type="button"
-            onClick={async () => {
-              await fetchApi("/api/entrance", { method: "DELETE" });
-              router.push("/select-entrance");
-            }}
-            className="mt-1 text-sm text-orange-600 hover:underline dark:text-orange-400"
-          >
-            Switch to Bazarna or Byouth
-          </button>
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-3xl">
+              Welcome, {brandName}
+            </h1>
+            <p className="mt-1 text-sm text-zinc-500 sm:text-base">
+              Booth <span className="font-semibold text-zinc-700 dark:text-zinc-300">{boothNumber}</span>
+              {data?.event && (
+                <>
+                  {" "}· <span className="text-zinc-600 dark:text-zinc-400">{data.event.eventName}</span>
+                </>
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={async () => {
+                await fetchApi("/api/entrance", { method: "DELETE" });
+                router.push("/select-entrance");
+              }}
+              className="mt-1 text-sm text-orange-600 hover:underline dark:text-orange-400"
+            >
+              Switch to Bazarna or Byouth
+            </button>
+          </div>
+
+          {currentEntrance && (
+            <div className="flex items-center gap-3 self-start rounded-2xl border border-zinc-200/90 bg-white p-2 pr-4 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/90 sm:self-auto">
+              <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-zinc-100 ring-1 ring-zinc-200/50 dark:bg-zinc-800 dark:ring-zinc-700/50">
+                <Image
+                  src={getEntranceImage(currentEntrance)}
+                  alt={getEntranceLabel(currentEntrance)}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div className="text-left">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                    Exit Gate
+                  </span>
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                </div>
+                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                  {getEntranceLabel(currentEntrance)}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {!data?.event && (
@@ -168,7 +215,7 @@ export default function DashboardPage() {
             </p>
             <p className="mt-2 text-center text-sm text-zinc-400">
               An admin must create an event for {data?.entranceLabel ?? "this exit"} in
-              Settings, or switch using the link above.
+              Settings, or switch using the button above.
             </p>
           </Card>
         )}
@@ -190,10 +237,26 @@ export default function DashboardPage() {
 
         {data?.event && !data.eventDayPassed && !data.ticket && (
           <Card className="text-center">
-            <p className="mb-4 rounded-lg bg-orange-50 px-3 py-2 text-sm text-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
-              {data.entranceLabel} queue only — numbers here are separate from the
-              other exit.
-            </p>
+            {currentEntrance ? (
+              <div className="mb-4 flex items-center justify-center gap-2 rounded-xl border border-orange-200/60 bg-orange-50/80 px-3.5 py-2 text-sm text-orange-900 dark:border-orange-900/40 dark:bg-orange-950/40 dark:text-orange-200">
+                <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded">
+                  <Image
+                    src={getEntranceImage(currentEntrance)}
+                    alt={getEntranceLabel(currentEntrance)}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <span className="text-xs font-medium sm:text-sm">
+                  <strong className="font-semibold">{data.entranceLabel} queue only</strong> — numbers here are separate from the other exit.
+                </span>
+              </div>
+            ) : (
+              <p className="mb-4 rounded-lg bg-orange-50 px-3 py-2 text-sm text-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
+                {data.entranceLabel} queue only — numbers here are separate from the
+                other exit.
+              </p>
+            )}
             {openTime && closeTime && (
               <p className="mb-4 text-sm text-zinc-500">
                 Queue hours: {formatQueueWindow(openTime, closeTime)}
@@ -295,9 +358,21 @@ export default function DashboardPage() {
               </Card>
             )}
             <Card className="text-center">
-              <p className="text-sm font-semibold uppercase tracking-wide text-orange-600 dark:text-orange-400">
-                {data.entranceLabel} Exit
-              </p>
+              <div className="flex items-center justify-center gap-2">
+                {currentEntrance && (
+                  <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded">
+                    <Image
+                      src={getEntranceImage(currentEntrance)}
+                      alt={getEntranceLabel(currentEntrance)}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                )}
+                <p className="text-sm font-semibold uppercase tracking-wide text-orange-600 dark:text-orange-400">
+                  {data.entranceLabel} Exit
+                </p>
+              </div>
               <p className="mt-1 text-sm text-zinc-500">Your queue number</p>
               <p className="mt-2 text-6xl font-bold text-orange-600 dark:text-orange-400">
                 #{data.ticket.queueNumber}
