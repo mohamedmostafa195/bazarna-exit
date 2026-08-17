@@ -13,6 +13,7 @@ import {
   getEntranceLabel,
   type EntranceType,
 } from "@/lib/entrance";
+import { Trash2 } from "lucide-react";
 
 interface Event {
   id: string;
@@ -28,6 +29,8 @@ export default function SettingsPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [clearingEvents, setClearingEvents] = useState(false);
   const [entrance, setEntrance] = useState<EntranceType>("BAZARNA");
   const [form, setForm] = useState({
     eventName: "",
@@ -132,6 +135,89 @@ export default function SettingsPage() {
     loadFormForEntrance(allEvents, entrance);
   }
 
+  async function deleteEvent(id: string, eventName: string, isActive: boolean) {
+    const warning = isActive
+      ? `Warning: "${eventName}" is the CURRENT ACTIVE event. Deleting it will clear the active queue and tickets!\n\nAre you sure you want to delete this event?`
+      : `Delete event "${eventName}"? All associated tickets will also be removed.`;
+
+    if (!confirm(warning)) return;
+
+    setDeletingId(id);
+    const { ok, data } = await fetchApi<{ error?: string }>(
+      `/api/admin/events/${id}`,
+      { method: "DELETE" }
+    );
+    setDeletingId(null);
+
+    if (!ok) {
+      toast.error(data.error ?? "Failed to delete event");
+      return;
+    }
+
+    toast.success(`Deleted "${eventName}"`);
+    const allEvents = await fetchEvents();
+    setEvents(allEvents);
+    loadFormForEntrance(allEvents, entrance);
+  }
+
+  async function clearPastEvents() {
+    if (events.length === 0) {
+      toast.error("No events to clear");
+      return;
+    }
+
+    const inactiveEvents = events.filter((e) => !e.isActive);
+
+    let onlyInactive = true;
+    if (inactiveEvents.length > 0) {
+      const choice = confirm(
+        `Clear Events:\n\n• Click OK to clear ONLY past/inactive events (${inactiveEvents.length} event(s)).\n• Click Cancel to choose whether to delete ALL events.`
+      );
+      if (choice) {
+        onlyInactive = true;
+      } else {
+        const deleteAll = confirm(
+          `Do you want to permanently delete ALL ${events.length} event(s) including active ones and their queues?\n\nThis cannot be undone.`
+        );
+        if (!deleteAll) return;
+        onlyInactive = false;
+      }
+    } else {
+      if (
+        !confirm(
+          `This will permanently delete ALL ${events.length} event(s) and their queues.\n\nAre you sure?`
+        )
+      ) {
+        return;
+      }
+      onlyInactive = false;
+    }
+
+    setClearingEvents(true);
+    const { ok, data } = await fetchApi<{ deleted?: number; error?: string }>(
+      "/api/admin/events",
+      {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          confirm: "DELETE_EVENTS",
+          onlyInactive,
+        }),
+      }
+    );
+    setClearingEvents(false);
+
+    if (!ok) {
+      toast.error(data.error ?? "Failed to clear events");
+      return;
+    }
+
+    toast.success(`Cleared ${data.deleted ?? 0} event(s)`);
+    const allEvents = await fetchEvents();
+    setEvents(allEvents);
+    loadFormForEntrance(allEvents, entrance);
+  }
+
   if (loading) {
     return (
       <AppShell>
@@ -209,31 +295,67 @@ export default function SettingsPage() {
         </Card>
 
         {events.length > 0 && (
-          <Card className="mt-6" title="Past Events">
+          <Card className="mt-6">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                  Past Events
+                </h2>
+                <p className="text-xs text-zinc-500">
+                  {events.length} event{events.length === 1 ? "" : "s"} recorded
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={clearingEvents || deletingId !== null}
+                onClick={clearPastEvents}
+                className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/30"
+              >
+                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                {clearingEvents ? "Clearing..." : "Clear Events"}
+              </Button>
+            </div>
+
             <div className="space-y-3">
               {events.map((event) => (
                 <div
                   key={event.id}
-                  className="flex items-center justify-between rounded-lg border border-zinc-200 p-3 dark:border-zinc-700"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 p-3 transition-colors hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600"
                 >
-                  <div>
-                    <p className="font-medium">
-                      {event.eventName}{" "}
-                      <span className="text-xs text-zinc-400">
-                        ({getEntranceLabel(event.entranceType as EntranceType)})
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate font-medium text-zinc-900 dark:text-zinc-100">
+                        {event.eventName}
+                      </p>
+                      <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                        {getEntranceLabel(event.entranceType as EntranceType)}
                       </span>
-                    </p>
-                    <p className="text-sm text-zinc-500">
+                      {event.isActive && (
+                        <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                          Active
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-sm text-zinc-500">
                       {formatDateOnlyDisplay(event.eventDate)} ·{" "}
                       {formatTime(new Date(event.queueOpenTime))} –{" "}
                       {formatTime(new Date(event.queueCloseTime))}
                     </p>
                   </div>
-                  {event.isActive && (
-                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                      Active
-                    </span>
-                  )}
+
+                  <button
+                    type="button"
+                    disabled={deletingId === event.id || clearingEvents}
+                    onClick={() =>
+                      deleteEvent(event.id, event.eventName, event.isActive)
+                    }
+                    title={`Delete "${event.eventName}"`}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
               ))}
             </div>

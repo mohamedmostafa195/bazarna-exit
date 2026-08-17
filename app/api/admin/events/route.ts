@@ -5,6 +5,7 @@ import { parseDateOnlyToDb } from "@/lib/datetime";
 import { eventSettingsSchema } from "@/lib/validations";
 import { parseJsonBody, withApiHandler } from "@/lib/api-error";
 import { deactivateSiblingEvents } from "@/lib/event-admin";
+import { logAction } from "@/lib/action-log";
 
 function parseEventPayload(body: unknown) {
   const parsed = eventSettingsSchema.safeParse(body);
@@ -84,4 +85,56 @@ export const POST = adminRoute(async (request) => {
 
     return NextResponse.json({ event }, { status: 201 });
   }, "POST /api/admin/events");
+});
+
+export const DELETE = adminRoute(async (request) => {
+  return withApiHandler(async () => {
+    const body = await parseJsonBody<{
+      confirm?: string;
+      entranceType?: string;
+      onlyInactive?: boolean;
+    }>(request).catch(
+      () =>
+        ({}) as {
+          confirm?: string;
+          entranceType?: string;
+          onlyInactive?: boolean;
+        }
+    );
+
+    if (body.confirm !== "DELETE_EVENTS") {
+      return NextResponse.json(
+        { error: 'Confirmation required. Send { "confirm": "DELETE_EVENTS" }' },
+        { status: 400 }
+      );
+    }
+
+    const whereClause: { entranceType?: string; isActive?: boolean } = {};
+    if (body.entranceType) {
+      whereClause.entranceType = body.entranceType;
+    }
+    if (body.onlyInactive) {
+      whereClause.isActive = false;
+    }
+
+    const result = await prisma.event.deleteMany({
+      where: whereClause,
+    });
+
+    const actor =
+      request.auth?.user?.name ??
+      request.auth?.user?.email ??
+      "Admin";
+
+    await logAction({
+      action: "QUEUE_RESET",
+      actorName: actor,
+      entranceType: body.entranceType ?? null,
+      details: `Cleared ${result.count} event(s)${
+        body.entranceType ? ` (${body.entranceType})` : ""
+      }${body.onlyInactive ? " [past/inactive only]" : " [all]"}`,
+    });
+
+    return NextResponse.json({ deleted: result.count });
+  }, "DELETE /api/admin/events");
 });

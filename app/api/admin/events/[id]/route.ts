@@ -6,6 +6,7 @@ import { eventSettingsSchema } from "@/lib/validations";
 import { parseJsonBody, withApiHandler } from "@/lib/api-error";
 import { deactivateSiblingEvents } from "@/lib/event-admin";
 import { resetQueue } from "@/lib/queue";
+import { logAction } from "@/lib/action-log";
 
 export const PATCH = adminRoute(async (request, ctx) => {
   return withApiHandler(async () => {
@@ -66,4 +67,37 @@ export const PATCH = adminRoute(async (request, ctx) => {
 
     return NextResponse.json({ event });
   }, "PATCH /api/admin/events/[id]");
+});
+
+export const DELETE = adminRoute(async (request, ctx) => {
+  return withApiHandler(async () => {
+    const { id } = await ctx!.params;
+
+    const event = await prisma.event.findUnique({
+      where: { id },
+    });
+
+    if (!event) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    await prisma.event.delete({
+      where: { id },
+    });
+
+    const actor =
+      request.auth?.user?.name ??
+      request.auth?.user?.email ??
+      "Admin";
+
+    await logAction({
+      action: "QUEUE_RESET",
+      actorName: actor,
+      entranceType: event.entranceType,
+      eventId: event.id,
+      details: `Deleted event: ${event.eventName} (${event.entranceType})`,
+    });
+
+    return NextResponse.json({ success: true });
+  }, "DELETE /api/admin/events/[id]");
 });
