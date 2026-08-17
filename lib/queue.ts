@@ -135,7 +135,11 @@ export async function getActiveTicketInOtherEntrance(
   });
 }
 
-export async function requestQueueNumber(userId: string, eventId: string) {
+export async function requestQueueNumber(
+  userId: string,
+  eventId: string,
+  boothNumber?: string
+) {
   const maxAttempts = 25;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -158,6 +162,37 @@ export async function requestQueueNumber(userId: string, eventId: string) {
               error: "You already have a queue number for this event",
               ticket: existing,
             };
+          }
+
+          if (boothNumber) {
+            const activeEvents = await tx.event.findMany({
+              where: { isActive: true },
+              select: { id: true },
+            });
+            const activeEventIds = activeEvents.map((e) => e.id);
+
+            const duplicateBooth = await tx.queueTicket.findFirst({
+              where: {
+                eventId: {
+                  in: activeEventIds.length > 0 ? activeEventIds : [eventId],
+                },
+                userId: { not: userId },
+                user: {
+                  boothNumber: {
+                    equals: boothNumber,
+                    mode: "insensitive",
+                  },
+                },
+              },
+              include: { user: { select: { brandName: true } } },
+            });
+
+            if (duplicateBooth) {
+              return {
+                error: `Booth number "${boothNumber}" is already used by "${duplicateBooth.user.brandName}". Please enter your correct booth number.`,
+                ticket: null,
+              };
+            }
           }
 
           const currentEvent = await tx.event.findUnique({

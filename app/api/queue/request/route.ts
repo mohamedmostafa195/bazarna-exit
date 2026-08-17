@@ -59,6 +59,36 @@ export async function POST(request: Request) {
       );
     }
 
+    // Check if another brand already has an active ticket with this booth number
+    const activeEvents = await prisma.event.findMany({
+      where: { isActive: true },
+      select: { id: true },
+    });
+    const activeEventIds = activeEvents.map((e) => e.id);
+
+    const duplicateBooth = await prisma.queueTicket.findFirst({
+      where: {
+        eventId: { in: activeEventIds.length > 0 ? activeEventIds : [event.id] },
+        userId: { not: session!.user.id },
+        user: {
+          boothNumber: {
+            equals: boothNumber,
+            mode: "insensitive",
+          },
+        },
+      },
+      include: { user: { select: { brandName: true } } },
+    });
+
+    if (duplicateBooth) {
+      return NextResponse.json(
+        {
+          error: `Booth number "${boothNumber}" is already used by "${duplicateBooth.user.brandName}". Please enter your correct booth number.`,
+        },
+        { status: 409 }
+      );
+    }
+
     // Update the brand user's booth number in DB for this event
     await prisma.user.update({
       where: { id: session!.user.id },
@@ -74,7 +104,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Queue is not open" }, { status: 403 });
     }
 
-    const result = await requestQueueNumber(session!.user.id, event.id);
+    const result = await requestQueueNumber(session!.user.id, event.id, boothNumber);
 
     if (result.error) {
       if (result.ticket) {
