@@ -17,13 +17,13 @@ async function main() {
       representativeName: "Admin",
       boothNumber: "N/A",
       role: "ADMIN",
-    },
+    }, 
   });
 
   const yassminePassword = await bcrypt.hash("yassminePassword", 12);
   const yassmineEmail = "yassmine@bazarna.com";
 
-  // Migrate legacy mixed-case email if present
+  // Migrate legacy mixed-case email if present 
   const legacyYassmine = await prisma.user.findFirst({
     where: { email: { equals: yassmineEmail, mode: "insensitive" } },
   });

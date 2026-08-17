@@ -53,7 +53,7 @@ export function Navbar() {
     <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link
-          href="/"
+          href="/select-entrance"
           className="flex items-center gap-2"
         >
           <Image
