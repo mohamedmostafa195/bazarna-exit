@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       data: {
         brandName: parsed.data.brandName,
         representativeName: parsed.data.representativeName,
-        boothNumber: parsed.data.boothNumber,
+        boothNumber: parsed.data.boothNumber?.trim() || "N/A",
         email,
         password: hashedPassword,
         role: "BRAND",

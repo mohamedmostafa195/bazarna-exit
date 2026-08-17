@@ -51,6 +51,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
   const [currentServing, setCurrentServing] = useState<number | null>(null);
+  const [boothNumberInput, setBoothNumberInput] = useState("");
 
   const fetchStatus = useCallback(async () => {
     const { ok, data, status } = await fetchApi<
@@ -65,6 +66,13 @@ export default function DashboardPage() {
     if (ok) {
       setData(data);
       setCurrentServing(data.event?.currentServingNumber ?? null);
+      if (
+        data.user?.boothNumber &&
+        data.user.boothNumber !== "—" &&
+        data.user.boothNumber !== "N/A"
+      ) {
+        setBoothNumberInput((prev) => prev || data.user.boothNumber);
+      }
     }
     setLoading(false);
   }, []);
@@ -108,13 +116,22 @@ export default function DashboardPage() {
   );
 
   async function handleRequestNumber() {
+    const trimmedBooth = boothNumberInput.trim();
+    if (!trimmedBooth) {
+      toast.error("Please enter your booth number first");
+      return;
+    }
     if (requesting) return;
     setRequesting(true);
     const { ok, data } = await fetchApi<{
       error?: string;
       ticket?: { queueNumber: number };
       entranceLabel?: string;
-    }>("/api/queue/request", { method: "POST" });
+    }>("/api/queue/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ boothNumber: trimmedBooth }),
+    });
     setRequesting(false);
 
     if (!ok) {
@@ -133,7 +150,8 @@ export default function DashboardPage() {
       : null;
 
   const brandName = data?.user?.brandName ?? session?.user?.brandName ?? "Brand";
-  const boothNumber = data?.user?.boothNumber ?? session?.user?.boothNumber ?? "—";
+  const rawBooth = data?.user?.boothNumber ?? session?.user?.boothNumber;
+  const hasValidBooth = rawBooth && rawBooth !== "—" && rawBooth !== "N/A";
   const currentEntrance: EntranceType | null =
     data?.entranceType && isEntranceType(data.entranceType)
       ? data.entranceType
@@ -164,11 +182,16 @@ export default function DashboardPage() {
               Welcome, {brandName}
             </h1>
             <p className="mt-1 text-sm text-zinc-500 sm:text-base">
-              Booth <span className="font-semibold text-zinc-700 dark:text-zinc-300">{boothNumber}</span>
-              {data?.event && (
+              {hasValidBooth && (
                 <>
-                  {" "}· <span className="text-zinc-600 dark:text-zinc-400">{data.event.eventName}</span>
+                  Booth <span className="font-semibold text-zinc-700 dark:text-zinc-300">{rawBooth}</span>
+                  {" "}·{" "}
                 </>
+              )}
+              {data?.event ? (
+                <span className="text-zinc-600 dark:text-zinc-400">{data.event.eventName}</span>
+              ) : (
+                <span className="text-zinc-400">No active event</span>
               )}
             </p>
             <button
@@ -302,23 +325,48 @@ export default function DashboardPage() {
             )}
 
             {data.windowState === "open" && (
-              <>
+              <div className="mx-auto max-w-sm">
                 <Hash className="mx-auto h-12 w-12 text-orange-500" />
                 <h2 className="mt-4 text-xl font-semibold">
                   Queue is now open!
                 </h2>
-                <p className="mt-2 text-zinc-500">
-                  Click below to get your exit number
+                <p className="mt-1 text-sm text-zinc-500">
+                  Enter your booth number for this event to get your exit number
                 </p>
+
+                <div className="mt-6 text-left">
+                  <label
+                    htmlFor="booth-number"
+                    className="block text-sm font-semibold text-zinc-800 dark:text-zinc-200"
+                  >
+                    Your Booth Number <span className="text-red-500">*</span>
+                  </label>
+                  <div className="mt-1.5">
+                    <input
+                      id="booth-number"
+                      type="text"
+                      placeholder="e.g. 14Y, B-20, 105"
+                      value={boothNumberInput}
+                      onChange={(e) => setBoothNumberInput(e.target.value)}
+                      className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-center text-lg font-bold tracking-wide text-zinc-900 placeholder:text-sm placeholder:font-normal placeholder:text-zinc-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+                      required
+                    />
+                  </div>
+                  <p className="mt-1.5 text-center text-xs text-zinc-400">
+                    Make sure your booth number is accurate before requesting.
+                  </p>
+                </div>
+
                 <Button
-                  className="mt-6"
+                  className="mt-6 w-full"
                   size="lg"
                   loading={requesting}
+                  disabled={!boothNumberInput.trim()}
                   onClick={handleRequestNumber}
                 >
                   Get My Exit Number
                 </Button>
-              </>
+              </div>
             )}
 
             {data.windowState === "closed" && (

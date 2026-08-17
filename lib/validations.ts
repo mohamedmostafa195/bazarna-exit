@@ -5,7 +5,7 @@ export const registerSchema = z.object({
   representativeName: z
     .string()
     .min(2, "Representative name must be at least 2 characters"),
-  boothNumber: z.string().min(1, "Booth number is required"),
+  boothNumber: z.string().optional(),
   email: z.string().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   entranceType: z.enum(["BAZARNA", "BYOUTH"]).optional(),

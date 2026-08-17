@@ -15,7 +15,6 @@ export default function RegisterPage() {
   const [form, setForm] = useState({
     brandName: "",
     representativeName: "",
-    boothNumber: "",
     email: "",
     password: "",
   });
@@ -75,14 +74,6 @@ export default function RegisterPage() {
               value={form.representativeName}
               onChange={(e) =>
                 setForm({ ...form, representativeName: e.target.value })
-              }
-              required
-            />
-            <Input
-              label="Booth Number"
-              value={form.boothNumber}
-              onChange={(e) =>
-                setForm({ ...form, boothNumber: e.target.value })
               }
               required
             />

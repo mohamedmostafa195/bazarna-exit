@@ -8,12 +8,30 @@ import { sendQueueConfirmationEmail } from "@/lib/email";
 import { resolveEntranceType } from "@/lib/entrance-server";
 import { prisma } from "@/lib/prisma";
 import { getEntranceLabel, isEntranceType } from "@/lib/entrance";
-import { withApiHandler } from "@/lib/api-error";
+import { parseJsonBody, withApiHandler } from "@/lib/api-error";
 
 export async function POST(request: Request) {
   return withApiHandler(async () => {
     const { session, error } = await requireBrand(request);
     if (error) return error;
+
+    const body = await parseJsonBody<{ boothNumber?: string }>(request).catch(
+      () => ({}) as { boothNumber?: string }
+    );
+    const boothNumber = body.boothNumber?.trim();
+
+    if (!boothNumber) {
+      return NextResponse.json(
+        { error: "Please enter your booth number before requesting an exit number" },
+        { status: 400 }
+      );
+    }
+
+    // Update the brand user's booth number in DB for this event
+    await prisma.user.update({
+      where: { id: session!.user.id },
+      data: { boothNumber },
+    });
 
     const entranceType = await resolveEntranceType(
       request,
@@ -80,7 +98,7 @@ export async function POST(request: Request) {
       eventId: event.id,
       brandName,
       queueNumber: ticket.queueNumber,
-      details: `Requested #${ticket.queueNumber} — ${brandName}`,
+      details: `Requested #${ticket.queueNumber} — ${brandName} (Booth ${boothNumber})`,
     }).catch((logError) => {
       console.error("Action log failed (non-fatal):", logError);
     });
