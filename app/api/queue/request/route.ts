@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireBrand } from "@/lib/auth-helpers";
 import { getActiveEventReady } from "@/lib/event-lifecycle";
-import { requestQueueNumber } from "@/lib/queue";
+import { getActiveTicketInOtherEntrance, requestQueueNumber } from "@/lib/queue";
 import { logAction } from "@/lib/action-log";
 import { getQueueWindowState, getTicketUrl } from "@/lib/utils";
 import { sendQueueConfirmationEmail } from "@/lib/email";
@@ -27,12 +27,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Update the brand user's booth number in DB for this event
-    await prisma.user.update({
-      where: { id: session!.user.id },
-      data: { boothNumber },
-    });
-
     const entranceType = await resolveEntranceType(
       request,
       session!.user.entranceType
@@ -49,6 +43,27 @@ export async function POST(request: Request) {
     if (!event) {
       return NextResponse.json({ error: "No active event" }, { status: 404 });
     }
+
+    const otherTicket = await getActiveTicketInOtherEntrance(
+      session!.user.id,
+      event.id
+    );
+
+    if (otherTicket && isEntranceType(otherTicket.event.entranceType)) {
+      const label = getEntranceLabel(otherTicket.event.entranceType);
+      return NextResponse.json(
+        {
+          error: `You already have an active exit number (#${otherTicket.queueNumber}) in ${label} Exit. Each brand can only join one exit queue.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Update the brand user's booth number in DB for this event
+    await prisma.user.update({
+      where: { id: session!.user.id },
+      data: { boothNumber },
+    });
 
     const windowState = getQueueWindowState(
       event.queueOpenTime,

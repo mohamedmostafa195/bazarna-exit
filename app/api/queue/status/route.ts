@@ -3,8 +3,9 @@ import { requireAuth } from "@/lib/auth-helpers";
 import { getQueueWindowState } from "@/lib/utils";
 import { resolveEntranceType } from "@/lib/entrance-server";
 import { prisma } from "@/lib/prisma";
-import { getEntranceLabel } from "@/lib/entrance";
+import { getEntranceLabel, isEntranceType, type EntranceType } from "@/lib/entrance";
 import { withApiHandler } from "@/lib/api-error";
+import { getActiveTicketInOtherEntrance } from "@/lib/queue";
 import {
   getActiveEventReady,
   isEventDayPassed,
@@ -64,6 +65,25 @@ export async function GET(request: Request) {
       },
     });
 
+    let otherEntranceTicket = null;
+    if (!ticket) {
+      const otherTicket = await getActiveTicketInOtherEntrance(
+        session!.user.id,
+        event.id
+      );
+      if (otherTicket && isEntranceType(otherTicket.event.entranceType)) {
+        otherEntranceTicket = {
+          id: otherTicket.id,
+          queueNumber: otherTicket.queueNumber,
+          status: otherTicket.status,
+          qrToken: otherTicket.qrToken,
+          entranceType: otherTicket.event.entranceType as EntranceType,
+          entranceLabel: getEntranceLabel(otherTicket.event.entranceType),
+          eventName: otherTicket.event.eventName,
+        };
+      }
+    }
+
     return NextResponse.json({
       event: {
         id: event.id,
@@ -76,6 +96,7 @@ export async function GET(request: Request) {
       },
       windowState,
       ticket,
+      otherEntranceTicket,
       entranceType,
       entranceLabel: entranceType ? getEntranceLabel(entranceType) : null,
       eventDayPassed,

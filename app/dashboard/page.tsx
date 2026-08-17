@@ -37,6 +37,15 @@ interface QueueData {
     qrToken: string;
     requestedAt: string;
   } | null;
+  otherEntranceTicket?: {
+    id: string;
+    queueNumber: number;
+    status: string;
+    qrToken: string;
+    entranceType: "BAZARNA" | "BYOUTH";
+    entranceLabel: string;
+    eventName: string;
+  } | null;
   entranceType?: "BAZARNA" | "BYOUTH";
   entranceLabel?: string;
   eventDayPassed?: boolean;
@@ -266,7 +275,54 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {data?.event && !data.eventDayPassed && !data.ticket && (
+        {data?.otherEntranceTicket && !data.ticket && (
+          <Card className="border-orange-200 bg-orange-50/60 p-6 text-center shadow-sm dark:border-orange-900/50 dark:bg-orange-950/20">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-orange-200 bg-white p-2 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+              <Image
+                src={getEntranceImage(data.otherEntranceTicket.entranceType)}
+                alt={data.otherEntranceTicket.entranceLabel}
+                width={48}
+                height={48}
+                className="rounded-xl object-cover"
+              />
+            </div>
+            <h2 className="mt-4 text-xl font-bold text-zinc-900 dark:text-zinc-100">
+              Active Number in {data.otherEntranceTicket.entranceLabel} Exit
+            </h2>
+            <p className="mt-2 text-base text-zinc-600 dark:text-zinc-300">
+              You already requested exit number{" "}
+              <span className="text-3xl font-extrabold text-orange-600 dark:text-orange-400">
+                #{data.otherEntranceTicket.queueNumber}
+              </span>{" "}
+              in <strong>{data.otherEntranceTicket.entranceLabel} Exit</strong>.
+            </p>
+            <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+              Each brand can only join one exit queue. You cannot request a number in {data?.entranceLabel ?? "this exit"} while you have an active number in {data.otherEntranceTicket.entranceLabel}.
+            </p>
+
+            <div className="mt-6 flex justify-center">
+              <Button
+                type="button"
+                size="lg"
+                onClick={async () => {
+                  await fetchApi("/api/entrance", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      entranceType: data.otherEntranceTicket!.entranceType,
+                    }),
+                  });
+                  window.location.href = "/dashboard";
+                }}
+                className="gap-2 bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                Go to {data.otherEntranceTicket.entranceLabel} Ticket (#{data.otherEntranceTicket.queueNumber}) →
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {data?.event && !data.eventDayPassed && !data.ticket && !data.otherEntranceTicket && (
           <Card className="text-center">
             {currentEntrance ? (
               <div className="mb-4 flex items-center justify-center gap-2 rounded-xl border border-orange-200/60 bg-orange-50/80 px-3.5 py-2 text-sm text-orange-900 dark:border-orange-900/40 dark:bg-orange-950/40 dark:text-orange-200">
