@@ -54,6 +54,11 @@ export function Navbar() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link
           href="/select-entrance"
+          onClick={async (e) => {
+            e.preventDefault();
+            await fetchApi("/api/entrance", { method: "DELETE" });
+            window.location.href = "/select-entrance";
+          }}
           className="flex items-center gap-2"
         >
           <Image

@@ -175,7 +175,7 @@ export default function DashboardPage() {
               type="button"
               onClick={async () => {
                 await fetchApi("/api/entrance", { method: "DELETE" });
-                router.push("/select-entrance");
+                window.location.href = "/select-entrance";
               }}
               className="mt-1 text-sm text-orange-600 hover:underline dark:text-orange-400"
             >
@@ -184,13 +184,21 @@ export default function DashboardPage() {
           </div>
 
           {currentEntrance && (
-            <div className="flex items-center gap-3 self-start rounded-2xl border border-zinc-200/90 bg-white p-2 pr-4 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/90 sm:self-auto">
+            <button
+              type="button"
+              onClick={async () => {
+                await fetchApi("/api/entrance", { method: "DELETE" });
+                window.location.href = "/select-entrance";
+              }}
+              title="Click to switch exit gate"
+              className="group flex items-center gap-3 self-start rounded-2xl border border-zinc-200/90 bg-white p-2 pr-4 shadow-sm backdrop-blur transition-all hover:border-orange-400 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900/90 dark:hover:border-orange-500 sm:self-auto"
+            >
               <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-zinc-100 ring-1 ring-zinc-200/50 dark:bg-zinc-800 dark:ring-zinc-700/50">
                 <Image
                   src={getEntranceImage(currentEntrance)}
                   alt={getEntranceLabel(currentEntrance)}
                   fill
-                  className="object-cover"
+                  className="object-cover transition-transform group-hover:scale-105"
                 />
               </div>
               <div className="text-left">
@@ -204,7 +212,7 @@ export default function DashboardPage() {
                   {getEntranceLabel(currentEntrance)}
                 </p>
               </div>
-            </div>
+            </button>
           )}
         </div>
 
