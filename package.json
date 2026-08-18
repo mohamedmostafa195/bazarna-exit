@@ -12,7 +12,8 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
-    "db:setup": "prisma db push && tsx prisma/seed.ts"
+    "db:setup": "prisma db push && tsx prisma/seed.ts",
+    "test:queue": "tsx scripts/load-test-queue.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -74,29 +74,35 @@ export async function getQueueStats(eventId: string) {
 }
 
 export async function broadcastQueueUpdate(eventId: string) {
-  const stats = await getQueueStats(eventId);
-  emitQueueUpdate(eventId, {
-    currentServing: stats.currentServing,
-    upcoming: stats.upcoming,
-    tickets: stats.tickets.map((t) => ({
-      id: t.id,
-      queueNumber: t.queueNumber,
-      status: t.status,
-      brandName: t.user.brandName,
-      boothNumber: t.user.boothNumber,
-      requestedAt: t.requestedAt,
-      calledAt: t.calledAt,
-      completedAt: t.completedAt,
-    })),
-    totalWaiting: stats.totalWaiting,
-    totalCompleted: stats.totalCompleted,
-  });
+  try {
+    const stats = await getQueueStats(eventId);
+    emitQueueUpdate(eventId, {
+      currentServing: stats.currentServing,
+      upcoming: stats.upcoming,
+      tickets: stats.tickets.map((t) => ({
+        id: t.id,
+        queueNumber: t.queueNumber,
+        status: t.status,
+        brandName: t.user.brandName,
+        boothNumber: t.user.boothNumber,
+        requestedAt: t.requestedAt,
+        calledAt: t.calledAt,
+        completedAt: t.completedAt,
+      })),
+      totalWaiting: stats.totalWaiting,
+      totalCompleted: stats.totalCompleted,
+    });
+  } catch (error) {
+    console.error("[queue] broadcast failed (non-fatal):", error);
+  }
 }
 
 const broadcastTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 /** Debounce display updates when many people join at once (250+). */
 export function scheduleQueueBroadcast(eventId: string, delayMs = 300) {
+  if (process.env.SKIP_QUEUE_BROADCAST === "1") return;
+
   const pending = broadcastTimers.get(eventId);
   if (pending) clearTimeout(pending);
   broadcastTimers.set(
@@ -140,7 +146,7 @@ export async function requestQueueNumber(
   eventId: string,
   boothNumber?: string
 ) {
-  const maxAttempts = 25;
+  const maxAttempts = 40;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
@@ -277,6 +283,15 @@ export async function requestQueueNumber(
       scheduleQueueBroadcast(eventId);
       return { ticket: result.ticket!, error: null };
     } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2024"
+      ) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, 200 + attempt * 150)
+        );
+        continue;
+      }
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"
