@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
@@ -28,15 +29,30 @@ export default function RegisterPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form),
     });
-    setLoading(false);
-
     if (!ok) {
       toast.error(data.error ?? "Registration failed");
+      setLoading(false);
       return;
     }
 
-    toast.success("Account created! Please sign in.");
-    router.replace("/login");
+    const login = await signIn("credentials", {
+      email: form.email,
+      password: form.password,
+      redirect: false,
+    });
+
+    setLoading(false);
+
+    if (login?.error) {
+      toast.success("Account created! Please sign in.");
+      router.replace("/login");
+      return;
+    }
+
+    toast.success("Account created. Choose your exit.");
+    await fetchApi("/api/entrance", { method: "DELETE" });
+    router.replace("/select-entrance");
+    router.refresh();
   }
 
   return (
