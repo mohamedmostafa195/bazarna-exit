@@ -84,6 +84,33 @@ export async function GET(request: Request) {
       }
     }
 
+    // Query active tickets across active events to collect occupied booth numbers
+    const activeEvents = await prisma.event.findMany({
+      where: { isActive: true },
+      select: { id: true },
+    });
+    const activeEventIds = activeEvents.map((e) => e.id);
+
+    const activeTickets = await prisma.queueTicket.findMany({
+      where: {
+        eventId: { in: activeEventIds.length > 0 ? activeEventIds : [event.id] },
+        userId: { not: session!.user.id },
+      },
+      select: {
+        user: {
+          select: { boothNumber: true },
+        },
+      },
+    });
+
+    const occupiedBooths = Array.from(
+      new Set(
+        activeTickets
+          .map((t) => t.user.boothNumber?.trim().toUpperCase())
+          .filter((b): b is string => Boolean(b && b !== "—" && b !== "N/A"))
+      )
+    );
+
     return NextResponse.json({
       event: {
         id: event.id,
@@ -98,6 +125,7 @@ export async function GET(request: Request) {
       windowState,
       ticket,
       otherEntranceTicket,
+      occupiedBooths,
       entranceType,
       entranceLabel: entranceType ? getEntranceLabel(entranceType) : null,
       eventDayPassed,
