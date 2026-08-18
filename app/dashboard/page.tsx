@@ -442,9 +442,29 @@ export default function DashboardPage() {
               const occupiedBooths = (data.occupiedBooths ?? [])
                 .map((b) => normalizeBoothCode(b))
                 .filter((b): b is string => Boolean(b));
-              const selectedZoneObj = eventZones.find(
-                (z) => z.name.trim().toUpperCase() === selectedZone.trim().toUpperCase()
+
+              const zoneAvailability = eventZones.map((z) => {
+                const name = z.name.trim().toUpperCase();
+                let taken = 0;
+                for (let n = 1; n <= z.limit; n++) {
+                  if (occupiedBooths.includes(`${n}${name}`)) taken += 1;
+                }
+                return {
+                  ...z,
+                  name,
+                  taken,
+                  remaining: z.limit - taken,
+                  isFull: taken >= z.limit,
+                };
+              });
+
+              const allZonesFull =
+                zoneAvailability.length > 0 &&
+                zoneAvailability.every((z) => z.isFull);
+              const selectedZoneObj = zoneAvailability.find(
+                (z) => z.name === selectedZone.trim().toUpperCase()
               );
+              const selectedZoneFull = Boolean(selectedZoneObj?.isFull);
               const selectedBoothCode =
                 selectedZone && selectedNumber
                   ? normalizeBoothCode(`${selectedNumber}${selectedZone}`)
@@ -453,7 +473,11 @@ export default function DashboardPage() {
                 selectedBoothCode && occupiedBooths.includes(selectedBoothCode)
               );
               const isBoothValid = Boolean(
-                selectedZone && selectedNumber && !isSelectedOccupied
+                selectedZone &&
+                  selectedNumber &&
+                  !isSelectedOccupied &&
+                  !selectedZoneFull &&
+                  !allZonesFull
               );
 
               return (
@@ -481,31 +505,19 @@ export default function DashboardPage() {
                           onChange={(e) => {
                             const newZone = e.target.value;
                             setSelectedZone(newZone);
-                            const targetZ = eventZones.find(
-                              (z) =>
-                                z.name.trim().toUpperCase() ===
-                                newZone.trim().toUpperCase()
-                            );
-                            if (
-                              targetZ &&
-                              selectedNumber &&
-                              (parseInt(selectedNumber, 10) > targetZ.limit ||
-                                occupiedBooths.includes(
-                                  `${parseInt(selectedNumber, 10)}${targetZ.name.trim().toUpperCase()}`
-                                ))
-                            ) {
-                              setSelectedNumber("");
-                            }
+                            setSelectedNumber("");
                           }}
                           className="mt-1.5 w-full rounded-xl border border-zinc-300 bg-white px-3 py-3 text-center text-base font-bold text-zinc-900 shadow-xs focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
                         >
                           <option value="">Select Zone</option>
-                          {eventZones.map((z) => (
+                          {zoneAvailability.map((z) => (
                             <option
                               key={z.name}
-                              value={z.name.trim().toUpperCase()}
+                              value={z.name}
+                              disabled={z.isFull}
                             >
-                              Zone {z.name.trim().toUpperCase()}
+                              Zone {z.name}
+                              {z.isFull ? " (Full)" : ""}
                             </option>
                           ))}
                         </select>
@@ -523,13 +535,23 @@ export default function DashboardPage() {
                           limit={selectedZoneObj?.limit ?? 0}
                           value={selectedNumber}
                           occupied={occupiedBooths}
-                          disabled={!selectedZone}
+                          disabled={!selectedZone || selectedZoneFull}
                           onChange={setSelectedNumber}
                         />
                       </div>
                     </div>
 
-                    {selectedZone && selectedNumber ? (
+                    {allZonesFull ? (
+                      <p className="mt-3.5 flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-red-500 dark:text-red-400">
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        No zones or booth numbers available. All booths are taken.
+                      </p>
+                    ) : selectedZoneFull ? (
+                      <p className="mt-3.5 flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-red-500 dark:text-red-400">
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        No booth numbers left in Zone {selectedZone}. Please pick another zone.
+                      </p>
+                    ) : selectedZone && selectedNumber ? (
                       isSelectedOccupied ? (
                         <p className="mt-3.5 flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-red-500 dark:text-red-400">
                           <AlertCircle className="h-4 w-4 shrink-0" />

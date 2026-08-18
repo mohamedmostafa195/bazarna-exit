@@ -47,7 +47,11 @@ export function BoothNumberPicker({
         id="select-number"
       >
         <span>
-          {value || (zone ? "Select Number" : "Select Zone First")}
+          {!zone
+            ? "Select Zone First"
+            : disabled
+            ? "No numbers left"
+            : value || "Select Number"}
         </span>
         <ChevronDown className="h-4 w-4 text-zinc-400" />
       </button>
