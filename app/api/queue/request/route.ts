@@ -10,7 +10,10 @@ import { prisma } from "@/lib/prisma";
 import { getEntranceLabel, isEntranceType } from "@/lib/entrance";
 import { parseJsonBody, withApiHandler } from "@/lib/api-error";
 
-import { validateBoothAgainstZones } from "@/lib/booth-validation";
+import {
+  resolveEventZones,
+  validateBoothAgainstZones,
+} from "@/lib/booth-validation";
 
 export async function POST(request: Request) {
   return withApiHandler(async () => {
@@ -24,7 +27,7 @@ export async function POST(request: Request) {
 
     if (!boothNumber) {
       return NextResponse.json(
-        { error: "Please enter your booth number before requesting an exit number" },
+        { error: "Please select your zone and booth number before requesting an exit number" },
         { status: 400 }
       );
     }
@@ -46,30 +49,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No active event" }, { status: 404 });
     }
 
-    let finalBoothNumber = boothNumber;
-
-    if (event.zones && event.zones.length > 0) {
-      const boothValidation = validateBoothAgainstZones(boothNumber, event.zones);
-      if (!boothValidation.valid) {
-        return NextResponse.json(
-          { error: boothValidation.error },
-          { status: 400 }
-        );
-      }
-      finalBoothNumber = boothValidation.formattedBooth!;
-    } else if (entranceType === "BYOUTH") {
-      const byouthPattern = /^(\d+)[yY]$/;
-      const match = boothNumber.match(byouthPattern);
-      if (!match) {
-        return NextResponse.json(
-          {
-            error: "For Byouth exit, booth number must be a number followed by Y (e.g. 1Y, 10Y, 20Y)",
-          },
-          { status: 400 }
-        );
-      }
-      finalBoothNumber = `${match[1]}Y`;
+    const eventZones = resolveEventZones(event.zones, entranceType);
+    const boothValidation = validateBoothAgainstZones(boothNumber, eventZones);
+    if (!boothValidation.valid) {
+      return NextResponse.json(
+        { error: boothValidation.error },
+        { status: 400 }
+      );
     }
+    const finalBoothNumber = boothValidation.formattedBooth!;
 
     const otherTicket = await getActiveTicketInOtherEntrance(
       session!.user.id,
@@ -110,7 +98,7 @@ export async function POST(request: Request) {
     if (duplicateBooth) {
       return NextResponse.json(
         {
-          error: `Booth number "${finalBoothNumber}" is already used by "${duplicateBooth.user.brandName}". Please enter your correct booth number.`,
+          error: `Booth number "${finalBoothNumber}" is already used by "${duplicateBooth.user.brandName}". Please pick another.`,
         },
         { status: 409 }
       );

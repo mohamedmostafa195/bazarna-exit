@@ -20,7 +20,12 @@ import {
   isEntranceType,
 } from "@/lib/entrance";
 import { Clock, Users, Hash, CalendarCheck, RotateCcw, CheckCircle2, AlertCircle } from "lucide-react";
-import { validateBoothAgainstZones, parseBoothNumber, getBoothPlaceholder, type ZoneConfig } from "@/lib/booth-validation";
+import {
+  parseBoothNumber,
+  resolveEventZones,
+  validateBoothAgainstZones,
+  type ZoneConfig,
+} from "@/lib/booth-validation";
 
 interface QueueData {
   event: {
@@ -63,7 +68,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
   const [currentServing, setCurrentServing] = useState<number | null>(null);
-  const [boothNumberInput, setBoothNumberInput] = useState("");
   const [selectedZone, setSelectedZone] = useState("");
   const [selectedNumber, setSelectedNumber] = useState("");
 
@@ -85,7 +89,6 @@ export default function DashboardPage() {
         data.user.boothNumber !== "—" &&
         data.user.boothNumber !== "N/A"
       ) {
-        setBoothNumberInput((prev) => prev || data.user.boothNumber);
         const parsed = parseBoothNumber(data.user.boothNumber);
         if (parsed) {
           setSelectedZone((prev) => prev || parsed.zone);
@@ -109,6 +112,19 @@ export default function DashboardPage() {
     if (!lastUpdate) return;
 
     setCurrentServing(lastUpdate.currentServing);
+
+    if (!data?.ticket && Array.isArray(lastUpdate.tickets)) {
+      const occupied = Array.from(
+        new Set(
+          (lastUpdate.tickets as { boothNumber?: string }[])
+            .map((t) => t.boothNumber?.trim().toUpperCase())
+            .filter((b): b is string => Boolean(b && b !== "—" && b !== "N/A"))
+        )
+      );
+      setData((prev) =>
+        prev ? { ...prev, occupiedBooths: occupied } : prev
+      );
+    }
 
     if (data?.ticket) {
       const updated = (
@@ -134,32 +150,36 @@ export default function DashboardPage() {
     data?.windowState === "before" ? openTime : null
   );
 
-  async function handleRequestNumber() {
-    const eventZones = data?.event?.zones ?? [];
-    let finalBooth = boothNumberInput.trim();
+  const brandName = data?.user?.brandName ?? session?.user?.brandName ?? "Brand";
+  const rawBooth = data?.user?.boothNumber ?? session?.user?.boothNumber;
+  const hasValidBooth = rawBooth && rawBooth !== "—" && rawBooth !== "N/A";
+  const currentEntrance: EntranceType | null =
+    data?.entranceType && isEntranceType(data.entranceType)
+      ? data.entranceType
+      : session?.user?.entranceType && isEntranceType(session.user.entranceType)
+      ? session.user.entranceType
+      : data?.entranceLabel === "Byouth"
+      ? "BYOUTH"
+      : data?.entranceLabel === "Bazarna"
+      ? "BAZARNA"
+      : null;
 
-    if (eventZones.length > 0) {
-      if (selectedZone && selectedNumber) {
-        finalBooth = `${selectedNumber}${selectedZone}`;
-      }
-      if (!finalBooth) {
-        toast.error("Please select your Zone and Booth Number");
-        return;
-      }
-      const check = validateBoothAgainstZones(finalBooth, eventZones);
-      if (!check.valid) {
-        toast.error(check.error ?? "Invalid booth selection for this event");
-        return;
-      }
-    } else {
-      if (!finalBooth) {
-        toast.error("Please enter your booth number first");
-        return;
-      }
-      if (currentEntrance === "BYOUTH" && !/^\d+[yY]$/.test(finalBooth)) {
-        toast.error("For Byouth exit, booth number must be a number followed by Y (e.g. 1Y, 10Y, 20Y)");
-        return;
-      }
+  const eventZones = resolveEventZones(
+    data?.event?.zones,
+    currentEntrance ?? data?.entranceType
+  );
+
+  async function handleRequestNumber() {
+    if (!selectedZone || !selectedNumber) {
+      toast.error("Please select your Zone and Booth Number");
+      return;
+    }
+
+    const finalBooth = `${selectedNumber}${selectedZone}`;
+    const check = validateBoothAgainstZones(finalBooth, eventZones);
+    if (!check.valid) {
+      toast.error(check.error ?? "Invalid booth selection for this event");
+      return;
     }
 
     if (requesting) return;
@@ -188,20 +208,6 @@ export default function DashboardPage() {
   const brandsBefore =
     data?.ticket && currentServing && data.ticket.status === "WAITING"
       ? Math.max(0, data.ticket.queueNumber - currentServing)
-      : null;
-
-  const brandName = data?.user?.brandName ?? session?.user?.brandName ?? "Brand";
-  const rawBooth = data?.user?.boothNumber ?? session?.user?.boothNumber;
-  const hasValidBooth = rawBooth && rawBooth !== "—" && rawBooth !== "N/A";
-  const currentEntrance: EntranceType | null =
-    data?.entranceType && isEntranceType(data.entranceType)
-      ? data.entranceType
-      : session?.user?.entranceType && isEntranceType(session.user.entranceType)
-      ? session.user.entranceType
-      : data?.entranceLabel === "Byouth"
-      ? "BYOUTH"
-      : data?.entranceLabel === "Bazarna"
-      ? "BAZARNA"
       : null;
 
   if (loading) {
@@ -413,25 +419,18 @@ export default function DashboardPage() {
             )}
 
             {data.windowState === "open" && (() => {
-              const eventZones = data.event?.zones ?? [];
-              const hasEventZones = eventZones.length > 0;
               const occupiedBooths = data.occupiedBooths ?? [];
-
               const selectedZoneObj = eventZones.find(
                 (z) => z.name.trim().toUpperCase() === selectedZone.trim().toUpperCase()
               );
-
               const selectedBoothCode =
                 selectedZone && selectedNumber
                   ? `${selectedNumber}${selectedZone}`.toUpperCase()
                   : "";
               const isSelectedOccupied = occupiedBooths.includes(selectedBoothCode);
-
-              const isBoothValid = hasEventZones
-                ? Boolean(selectedZone && selectedNumber && !isSelectedOccupied)
-                : currentEntrance === "BYOUTH"
-                ? /^\d+[yY]$/.test(boothNumberInput.trim())
-                : boothNumberInput.trim().length > 0;
+              const isBoothValid = Boolean(
+                selectedZone && selectedNumber && !isSelectedOccupied
+              );
 
               return (
                 <div className="mx-auto max-w-sm">
@@ -443,133 +442,121 @@ export default function DashboardPage() {
                     Select your zone and booth number to get your exit number
                   </p>
 
-                  {hasEventZones ? (
-                    <div className="mt-5 text-left">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label
-                            htmlFor="select-zone"
-                            className="block text-xs font-semibold text-zinc-800 dark:text-zinc-200"
-                          >
-                            Select Zone <span className="text-red-500">*</span>
-                          </label>
-                          <select
-                            id="select-zone"
-                            value={selectedZone}
-                            onChange={(e) => {
-                              const newZone = e.target.value;
-                              setSelectedZone(newZone);
-                              const targetZ = eventZones.find(
-                                (z) => z.name.trim().toUpperCase() === newZone.trim().toUpperCase()
-                              );
-                              if (
-                                targetZ &&
-                                selectedNumber &&
-                                parseInt(selectedNumber, 10) > targetZ.limit
-                              ) {
-                                setSelectedNumber("");
-                              }
-                            }}
-                            className="mt-1.5 w-full rounded-xl border border-zinc-300 bg-white px-3 py-3 text-center text-base font-bold text-zinc-900 shadow-xs focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-                          >
-                            <option value="">Select Zone</option>
-                            {eventZones.map((z) => (
-                              <option key={z.name} value={z.name.trim().toUpperCase()}>
-                                Zone {z.name.trim().toUpperCase()}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label
-                            htmlFor="select-number"
-                            className="block text-xs font-semibold text-zinc-800 dark:text-zinc-200"
-                          >
-                            Booth Number <span className="text-red-500">*</span>
-                          </label>
-                          <select
-                            id="select-number"
-                            value={selectedNumber}
-                            disabled={!selectedZone}
-                            onChange={(e) => setSelectedNumber(e.target.value)}
-                            className="mt-1.5 w-full rounded-xl border border-zinc-300 bg-white px-3 py-3 text-center text-base font-bold text-zinc-900 shadow-xs focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-                          >
-                            <option value="">
-                              {selectedZone ? "Select Number" : "Select Zone First"}
+                  <div className="mt-5 text-left">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label
+                          htmlFor="select-zone"
+                          className="block text-xs font-semibold text-zinc-800 dark:text-zinc-200"
+                        >
+                          Select Zone <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          id="select-zone"
+                          value={selectedZone}
+                          onChange={(e) => {
+                            const newZone = e.target.value;
+                            setSelectedZone(newZone);
+                            const targetZ = eventZones.find(
+                              (z) =>
+                                z.name.trim().toUpperCase() ===
+                                newZone.trim().toUpperCase()
+                            );
+                            if (
+                              targetZ &&
+                              selectedNumber &&
+                              parseInt(selectedNumber, 10) > targetZ.limit
+                            ) {
+                              setSelectedNumber("");
+                            }
+                          }}
+                          className="mt-1.5 w-full rounded-xl border border-zinc-300 bg-white px-3 py-3 text-center text-base font-bold text-zinc-900 shadow-xs focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                        >
+                          <option value="">Select Zone</option>
+                          {eventZones.map((z) => (
+                            <option
+                              key={z.name}
+                              value={z.name.trim().toUpperCase()}
+                            >
+                              Zone {z.name.trim().toUpperCase()}
                             </option>
-                            {selectedZoneObj &&
-                              Array.from(
-                                { length: selectedZoneObj.limit },
-                                (_, i) => i + 1
-                              ).map((n) => {
-                                const boothCode = `${n}${selectedZoneObj.name.trim().toUpperCase()}`;
-                                const isOccupied = occupiedBooths.includes(boothCode);
-                                return (
-                                  <option
-                                    key={n}
-                                    value={n}
-                                    disabled={isOccupied}
-                                    className={
-                                      isOccupied
-                                        ? "bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500"
-                                        : ""
-                                    }
-                                  >
-                                    {n} {isOccupied ? "(Taken)" : ""}
-                                  </option>
-                                );
-                              })}
-                          </select>
-                        </div>
+                          ))}
+                        </select>
                       </div>
 
-                      {selectedZone && selectedNumber ? (
-                        isSelectedOccupied ? (
-                          <p className="mt-3.5 flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-red-500 dark:text-red-400">
-                            <AlertCircle className="h-4 w-4 shrink-0" />
-                            Booth <span className="font-extrabold">{selectedNumber}{selectedZone}</span> is already taken. Please pick another.
-                          </p>
-                        ) : (
-                          <p className="mt-3.5 flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                            <CheckCircle2 className="h-4 w-4 shrink-0" />
-                            Selected Booth:{" "}
-                            <span className="rounded-md bg-emerald-100/70 px-2 py-0.5 text-sm font-extrabold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
-                              {selectedNumber}{selectedZone}
-                            </span>
-                          </p>
-                        )
-                      ) : (
-                        <p className="mt-3 text-center text-xs text-zinc-400">
-                          Please select your Zone and Booth Number from above.
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="mt-5 text-left">
-                      <label
-                        htmlFor="booth-number"
-                        className="block text-sm font-semibold text-zinc-800 dark:text-zinc-200"
-                      >
-                        Your Booth Number <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative mt-1.5">
-                        <input
-                          id="booth-number"
-                          type="text"
-                          placeholder={
-                            currentEntrance === "BYOUTH"
-                              ? "e.g. 1Y, 10Y, 20Y"
-                              : "e.g. 14A, 1B, 13C"
-                          }
-                          value={boothNumberInput}
-                          onChange={(e) => setBoothNumberInput(e.target.value)}
-                          className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-center text-lg font-bold tracking-wide text-zinc-900 transition-all placeholder:text-sm placeholder:font-normal placeholder:text-zinc-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500"
-                          required
-                        />
+                      <div>
+                        <label
+                          htmlFor="select-number"
+                          className="block text-xs font-semibold text-zinc-800 dark:text-zinc-200"
+                        >
+                          Booth Number <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          id="select-number"
+                          value={selectedNumber}
+                          disabled={!selectedZone}
+                          onChange={(e) => setSelectedNumber(e.target.value)}
+                          className="mt-1.5 w-full rounded-xl border border-zinc-300 bg-white px-3 py-3 text-center text-base font-bold text-zinc-900 shadow-xs focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                        >
+                          <option value="">
+                            {selectedZone
+                              ? "Select Number"
+                              : "Select Zone First"}
+                          </option>
+                          {selectedZoneObj &&
+                            Array.from(
+                              { length: selectedZoneObj.limit },
+                              (_, i) => i + 1
+                            ).map((n) => {
+                              const boothCode = `${n}${selectedZoneObj.name.trim().toUpperCase()}`;
+                              const isOccupied =
+                                occupiedBooths.includes(boothCode);
+                              return (
+                                <option
+                                  key={n}
+                                  value={n}
+                                  disabled={isOccupied}
+                                  className={
+                                    isOccupied
+                                      ? "bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500"
+                                      : ""
+                                  }
+                                >
+                                  {n} {isOccupied ? "(Taken)" : ""}
+                                </option>
+                              );
+                            })}
+                        </select>
                       </div>
                     </div>
-                  )}
+
+                    {selectedZone && selectedNumber ? (
+                      isSelectedOccupied ? (
+                        <p className="mt-3.5 flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-red-500 dark:text-red-400">
+                          <AlertCircle className="h-4 w-4 shrink-0" />
+                          Booth{" "}
+                          <span className="font-extrabold">
+                            {selectedNumber}
+                            {selectedZone}
+                          </span>{" "}
+                          is already taken. Please pick another.
+                        </p>
+                      ) : (
+                        <p className="mt-3.5 flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                          <CheckCircle2 className="h-4 w-4 shrink-0" />
+                          Selected Booth:{" "}
+                          <span className="rounded-md bg-emerald-100/70 px-2 py-0.5 text-sm font-extrabold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+                            {selectedNumber}
+                            {selectedZone}
+                          </span>
+                        </p>
+                      )
+                    ) : (
+                      <p className="mt-3 text-center text-xs text-zinc-400">
+                        Please select your Zone and Booth Number from above.
+                      </p>
+                    )}
+                  </div>
 
                   <Button
                     className="mt-6 w-full"

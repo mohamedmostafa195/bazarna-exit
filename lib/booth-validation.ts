@@ -66,6 +66,34 @@ export function getBoothPlaceholder(
   return `e.g. ${examples.join(", ")}`;
 }
 
+/** Fallback booth zones when an event has none configured yet. */
+export function getDefaultZones(entranceType?: string | null): ZoneConfig[] {
+  if (entranceType === "BYOUTH") {
+    return [{ name: "Y", limit: 50 }];
+  }
+
+  return [
+    { name: "A", limit: 10 },
+    { name: "B", limit: 20 },
+    { name: "C", limit: 30 },
+    { name: "D", limit: 40 },
+  ];
+}
+
+export function resolveEventZones(
+  zones: ZoneConfig[] | null | undefined,
+  entranceType?: string | null
+): ZoneConfig[] {
+  if (zones && zones.length > 0) {
+    return zones.map((z) => ({
+      name: z.name.trim().toUpperCase(),
+      limit: z.limit,
+    }));
+  }
+
+  return getDefaultZones(entranceType);
+}
+
 /**
  * Validates a booth number against an event's zone configurations.
  */
