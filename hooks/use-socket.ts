@@ -10,6 +10,7 @@ interface QueueUpdateData {
   tickets: unknown[];
   totalWaiting: number;
   totalCompleted: number;
+  occupiedBooths?: string[];
 }
 
 let socket: Socket | null = null;
@@ -61,6 +62,9 @@ export function useSocket(
           tickets: (data.tickets ?? []) as unknown[],
           totalWaiting: (data.totalWaiting ?? stats?.totalWaiting ?? 0) as number,
           totalCompleted: (data.totalCompleted ?? stats?.totalCompleted ?? 0) as number,
+          occupiedBooths: Array.isArray(data.occupiedBooths)
+            ? (data.occupiedBooths as string[])
+            : undefined,
         });
       }
       return true;

@@ -46,6 +46,17 @@ export function parseBoothNumber(boothInput: string): BoothParseResult | null {
   return null;
 }
 
+export function normalizeBoothCode(
+  booth: string | null | undefined
+): string | null {
+  if (!booth) return null;
+  const parsed = parseBoothNumber(booth);
+  if (parsed) return `${parsed.number}${parsed.zone}`;
+  const trimmed = booth.trim().toUpperCase();
+  if (!trimmed || trimmed === "—" || trimmed === "N/A") return null;
+  return trimmed;
+}
+
 /**
  * Returns a valid example placeholder string based on active zones and limit values.
  * E.g., if limit is 10 for Zone Y, returns "e.g. 5Y".

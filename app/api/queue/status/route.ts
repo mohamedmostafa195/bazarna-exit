@@ -10,6 +10,7 @@ import {
   getActiveEventReady,
   isEventDayPassed,
 } from "@/lib/event-lifecycle";
+import { normalizeBoothCode } from "@/lib/booth-validation";
 
 export async function GET(request: Request) {
   return withApiHandler(async () => {
@@ -106,8 +107,8 @@ export async function GET(request: Request) {
     const occupiedBooths = Array.from(
       new Set(
         activeTickets
-          .map((t) => t.user.boothNumber?.trim().toUpperCase())
-          .filter((b): b is string => Boolean(b && b !== "—" && b !== "N/A"))
+          .map((t) => normalizeBoothCode(t.user.boothNumber))
+          .filter((b): b is string => Boolean(b))
       )
     );
 

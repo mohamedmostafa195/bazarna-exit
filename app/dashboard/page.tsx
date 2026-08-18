@@ -20,8 +20,10 @@ import {
   isEntranceType,
 } from "@/lib/entrance";
 import { Clock, Users, Hash, CalendarCheck, RotateCcw, CheckCircle2, AlertCircle } from "lucide-react";
+import { BoothNumberPicker } from "@/components/booth-number-picker";
 import {
   parseBoothNumber,
+  normalizeBoothCode,
   resolveEventZones,
   validateBoothAgainstZones,
   type ZoneConfig,
@@ -103,6 +105,17 @@ export default function DashboardPage() {
     fetchStatus();
   }, [fetchStatus]);
 
+  useEffect(() => {
+    if (!selectedZone || !selectedNumber) return;
+    const occupied = (data?.occupiedBooths ?? [])
+      .map((b) => normalizeBoothCode(b))
+      .filter((b): b is string => Boolean(b));
+    const code = normalizeBoothCode(`${selectedNumber}${selectedZone}`);
+    if (code && occupied.includes(code)) {
+      setSelectedNumber("");
+    }
+  }, [data?.occupiedBooths, selectedZone, selectedNumber]);
+
   const { lastUpdate } = useSocket(
     data?.event?.id ?? null,
     "/api/queue/status"
@@ -113,16 +126,23 @@ export default function DashboardPage() {
 
     setCurrentServing(lastUpdate.currentServing);
 
-    if (!data?.ticket && Array.isArray(lastUpdate.tickets)) {
-      const occupied = Array.from(
-        new Set(
-          (lastUpdate.tickets as { boothNumber?: string }[])
-            .map((t) => t.boothNumber?.trim().toUpperCase())
-            .filter((b): b is string => Boolean(b && b !== "—" && b !== "N/A"))
-        )
-      );
+    const occupiedFromPoll = Array.isArray(lastUpdate.occupiedBooths)
+      ? lastUpdate.occupiedBooths
+          .map((b) => normalizeBoothCode(b))
+          .filter((b): b is string => Boolean(b))
+      : [];
+    const occupiedFromTickets = Array.isArray(lastUpdate.tickets)
+      ? (lastUpdate.tickets as { boothNumber?: string }[])
+          .map((t) => normalizeBoothCode(t.boothNumber))
+          .filter((b): b is string => Boolean(b))
+      : [];
+    const nextOccupied = occupiedFromPoll.length > 0
+      ? occupiedFromPoll
+      : occupiedFromTickets;
+
+    if (!data?.ticket && nextOccupied.length > 0) {
       setData((prev) =>
-        prev ? { ...prev, occupiedBooths: occupied } : prev
+        prev ? { ...prev, occupiedBooths: Array.from(new Set(nextOccupied)) } : prev
       );
     }
 
@@ -197,7 +217,7 @@ export default function DashboardPage() {
 
     if (!ok) {
       toast.error(resData.error ?? "Failed to get queue number");
-      if (resData.ticket) fetchStatus();
+      fetchStatus();
       return;
     }
 
@@ -419,15 +439,19 @@ export default function DashboardPage() {
             )}
 
             {data.windowState === "open" && (() => {
-              const occupiedBooths = data.occupiedBooths ?? [];
+              const occupiedBooths = (data.occupiedBooths ?? [])
+                .map((b) => normalizeBoothCode(b))
+                .filter((b): b is string => Boolean(b));
               const selectedZoneObj = eventZones.find(
                 (z) => z.name.trim().toUpperCase() === selectedZone.trim().toUpperCase()
               );
               const selectedBoothCode =
                 selectedZone && selectedNumber
-                  ? `${selectedNumber}${selectedZone}`.toUpperCase()
+                  ? normalizeBoothCode(`${selectedNumber}${selectedZone}`)
                   : "";
-              const isSelectedOccupied = occupiedBooths.includes(selectedBoothCode);
+              const isSelectedOccupied = Boolean(
+                selectedBoothCode && occupiedBooths.includes(selectedBoothCode)
+              );
               const isBoothValid = Boolean(
                 selectedZone && selectedNumber && !isSelectedOccupied
               );
@@ -465,7 +489,10 @@ export default function DashboardPage() {
                             if (
                               targetZ &&
                               selectedNumber &&
-                              parseInt(selectedNumber, 10) > targetZ.limit
+                              (parseInt(selectedNumber, 10) > targetZ.limit ||
+                                occupiedBooths.includes(
+                                  `${parseInt(selectedNumber, 10)}${targetZ.name.trim().toUpperCase()}`
+                                ))
                             ) {
                               setSelectedNumber("");
                             }
@@ -491,42 +518,14 @@ export default function DashboardPage() {
                         >
                           Booth Number <span className="text-red-500">*</span>
                         </label>
-                        <select
-                          id="select-number"
+                        <BoothNumberPicker
+                          zone={selectedZone}
+                          limit={selectedZoneObj?.limit ?? 0}
                           value={selectedNumber}
+                          occupied={occupiedBooths}
                           disabled={!selectedZone}
-                          onChange={(e) => setSelectedNumber(e.target.value)}
-                          className="mt-1.5 w-full rounded-xl border border-zinc-300 bg-white px-3 py-3 text-center text-base font-bold text-zinc-900 shadow-xs focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-                        >
-                          <option value="">
-                            {selectedZone
-                              ? "Select Number"
-                              : "Select Zone First"}
-                          </option>
-                          {selectedZoneObj &&
-                            Array.from(
-                              { length: selectedZoneObj.limit },
-                              (_, i) => i + 1
-                            ).map((n) => {
-                              const boothCode = `${n}${selectedZoneObj.name.trim().toUpperCase()}`;
-                              const isOccupied =
-                                occupiedBooths.includes(boothCode);
-                              return (
-                                <option
-                                  key={n}
-                                  value={n}
-                                  disabled={isOccupied}
-                                  className={
-                                    isOccupied
-                                      ? "bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500"
-                                      : ""
-                                  }
-                                >
-                                  {n} {isOccupied ? "(Taken)" : ""}
-                                </option>
-                              );
-                            })}
-                        </select>
+                          onChange={setSelectedNumber}
+                        />
                       </div>
                     </div>
 
