@@ -28,5 +28,8 @@ export async function getActiveEventReady(entranceType?: string | null) {
   if (!event) return null;
 
   await resetQueueIfEventDayPassed(event.id);
-  return prisma.event.findUnique({ where: { id: event.id } });
+  return prisma.event.findUnique({
+    where: { id: event.id },
+    include: { zones: { orderBy: { name: "asc" } } },
+  });
 }

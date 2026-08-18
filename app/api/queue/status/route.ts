@@ -93,6 +93,7 @@ export async function GET(request: Request) {
         queueCloseTime: event.queueCloseTime,
         eventDate: event.eventDate,
         currentServingNumber: event.currentServingNumber,
+        zones: event.zones ?? [],
       },
       windowState,
       ticket,

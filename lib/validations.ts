@@ -16,12 +16,18 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+export const eventZoneSchema = z.object({
+  name: z.string().min(1, "Zone name is required"),
+  limit: z.number().int().min(1, "Zone limit must be at least 1"),
+});
+
 export const eventSettingsSchema = z.object({
   eventName: z.string().min(2, "Event name is required"),
   entranceType: z.enum(["BAZARNA", "BYOUTH"]),
   eventDate: z.string().min(1, "Event date is required"),
   queueOpenAt: z.string().min(1, "Queue open time is required"),
   queueCloseAt: z.string().min(1, "Queue close time is required"),
+  zones: z.array(eventZoneSchema).optional(),
 });
 
 export const forgotPasswordSchema = z.object({

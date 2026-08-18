@@ -20,6 +20,7 @@ import {
   isEntranceType,
 } from "@/lib/entrance";
 import { Clock, Users, Hash, CalendarCheck, RotateCcw, CheckCircle2, AlertCircle } from "lucide-react";
+import { validateBoothAgainstZones, getBoothPlaceholder, type ZoneConfig } from "@/lib/booth-validation";
 
 interface QueueData {
   event: {
@@ -28,6 +29,7 @@ interface QueueData {
     queueOpenTime: string;
     queueCloseTime: string;
     currentServingNumber: number | null;
+    zones?: ZoneConfig[];
   } | null;
   windowState: "before" | "open" | "closed";
   ticket: {
@@ -131,14 +133,21 @@ export default function DashboardPage() {
       return;
     }
 
-    if (currentEntrance === "BYOUTH" && !/^\d+[yY]$/.test(trimmedBooth)) {
+    const eventZones = data?.event?.zones ?? [];
+    if (eventZones.length > 0) {
+      const check = validateBoothAgainstZones(trimmedBooth, eventZones);
+      if (!check.valid) {
+        toast.error(check.error ?? "Invalid booth number for this event");
+        return;
+      }
+    } else if (currentEntrance === "BYOUTH" && !/^\d+[yY]$/.test(trimmedBooth)) {
       toast.error("For Byouth exit, booth number must be a number followed by Y (e.g. 1Y, 10Y, 20Y)");
       return;
     }
 
     if (requesting) return;
     setRequesting(true);
-    const { ok, data } = await fetchApi<{
+    const { ok, data: resData } = await fetchApi<{
       error?: string;
       ticket?: { queueNumber: number };
       entranceLabel?: string;
@@ -150,12 +159,12 @@ export default function DashboardPage() {
     setRequesting(false);
 
     if (!ok) {
-      toast.error(data.error ?? "Failed to get queue number");
-      if (data.ticket) fetchStatus();
+      toast.error(resData.error ?? "Failed to get queue number");
+      if (resData.ticket) fetchStatus();
       return;
     }
 
-    toast.success(`Your ${data.entranceLabel ?? "exit"} number is #${data.ticket!.queueNumber}!`);
+    toast.success(`Your ${resData.entranceLabel ?? "exit"} number is #${resData.ticket!.queueNumber}!`);
     fetchStatus();
   }
 
@@ -388,10 +397,83 @@ export default function DashboardPage() {
 
             {data.windowState === "open" && (() => {
               const trimmed = boothNumberInput.trim();
-              const isByouth = currentEntrance === "BYOUTH";
-              const isByouthValid = isByouth && /^\d+[yY]$/.test(trimmed);
-              const isByouthInvalid = isByouth && trimmed.length > 0 && !isByouthValid;
-              const isBoothValid = isByouth ? isByouthValid : trimmed.length > 0;
+              const eventZones = data.event?.zones ?? [];
+              const hasEventZones = eventZones.length > 0;
+              const placeholderText = getBoothPlaceholder(
+                eventZones,
+                currentEntrance === "BYOUTH"
+              );
+
+              let isBoothValid = false;
+              let validationMessage: React.ReactNode = null;
+              let isInputSuccess = false;
+              let isInputError = false;
+
+              if (hasEventZones) {
+                const zoneCheck = validateBoothAgainstZones(trimmed, eventZones);
+                isBoothValid = trimmed.length > 0 && zoneCheck.valid;
+                isInputSuccess = isBoothValid;
+                isInputError = trimmed.length > 0 && !zoneCheck.valid;
+
+                if (isInputSuccess) {
+                  validationMessage = (
+                    <p className="mt-2.5 flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                      Valid booth ({zoneCheck.formattedBooth})
+                    </p>
+                  );
+                } else if (isInputError) {
+                  validationMessage = (
+                    <p className="mt-2.5 flex items-center justify-center gap-1.5 text-center text-xs font-medium text-red-500 dark:text-red-400">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      {zoneCheck.error}
+                    </p>
+                  );
+                } else {
+                  validationMessage = (
+                    <p className="mt-2 text-center text-xs text-zinc-400">
+                      Enter booth number and zone ({placeholderText})
+                    </p>
+                  );
+                }
+              } else {
+                const isByouth = currentEntrance === "BYOUTH";
+                const isByouthValid = isByouth && /^\d+[yY]$/.test(trimmed);
+                const isByouthInvalid = isByouth && trimmed.length > 0 && !isByouthValid;
+                isBoothValid = isByouth ? isByouthValid : trimmed.length > 0;
+                isInputSuccess = isByouth ? isByouthValid : false;
+                isInputError = isByouth ? isByouthInvalid : false;
+
+                if (isByouth) {
+                  if (isByouthValid) {
+                    validationMessage = (
+                      <p className="mt-2.5 flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                        Valid booth ({trimmed.toUpperCase()})
+                      </p>
+                    );
+                  } else if (isByouthInvalid) {
+                    validationMessage = (
+                      <p className="mt-2.5 flex items-center justify-center gap-1.5 text-center text-xs font-medium text-red-500 dark:text-red-400">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        Must be a number followed by Y (e.g. 5Y, 10Y)
+                      </p>
+                    );
+                  } else {
+                    validationMessage = (
+                      <p className="mt-2 text-center text-xs text-zinc-400">
+                        Must be a number followed by Y (e.g. 5Y, 10Y)
+                      </p>
+                    );
+                  }
+                } else {
+                  validationMessage = (
+                    <p className="mt-2 text-center text-xs text-zinc-400">
+                      Make sure your booth number is accurate before requesting.
+                    </p>
+                  );
+                }
+              }
 
               return (
                 <div className="mx-auto max-w-sm">
@@ -403,7 +485,34 @@ export default function DashboardPage() {
                     Enter your booth number for this event to get your exit number
                   </p>
 
-                  <div className="mt-6 text-left">
+                  {hasEventZones && (
+                    <div className="mt-5 overflow-hidden rounded-2xl border border-orange-200/60 bg-gradient-to-b from-orange-50/80 to-amber-50/30 p-3.5 shadow-sm dark:border-orange-900/40 dark:from-orange-950/40 dark:to-zinc-900/50">
+                      <div className="flex items-center justify-center gap-1.5 text-orange-900 dark:text-orange-200">
+                        <span className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-orange-800 dark:text-orange-300">
+                          Allowed Event Zones
+                        </p>
+                      </div>
+                      <div className="mt-2 flex flex-wrap justify-center gap-2">
+                        {eventZones.map((z) => (
+                          <div
+                            key={z.name}
+                            className="flex items-center gap-1.5 rounded-xl border border-orange-200/70 bg-white/90 px-3 py-1 text-xs font-semibold text-zinc-800 shadow-2xs backdrop-blur dark:border-zinc-700/60 dark:bg-zinc-800/90 dark:text-zinc-100"
+                          >
+                            <span className="font-extrabold text-orange-600 dark:text-orange-400">
+                              Zone {z.name.trim().toUpperCase()}
+                            </span>
+                            <span className="text-zinc-300 dark:text-zinc-600">•</span>
+                            <span className="font-medium text-zinc-600 dark:text-zinc-300">
+                              1 to {z.limit}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-5 text-left">
                     <label
                       htmlFor="booth-number"
                       className="block text-sm font-semibold text-zinc-800 dark:text-zinc-200"
@@ -414,50 +523,26 @@ export default function DashboardPage() {
                       <input
                         id="booth-number"
                         type="text"
-                        placeholder={
-                          isByouth
-                            ? "e.g. 1Y, 10Y, 20Y"
-                            : "e.g. 14A, 1B, 13C"
-                        }
+                        placeholder={placeholderText}
                         value={boothNumberInput}
                         onChange={(e) => setBoothNumberInput(e.target.value)}
                         className={`w-full rounded-xl border bg-white px-4 py-3 text-center text-lg font-bold tracking-wide text-zinc-900 transition-all placeholder:text-sm placeholder:font-normal placeholder:text-zinc-400 focus:outline-none dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500 ${
-                          isByouthValid
+                          isInputSuccess
                             ? "border-emerald-500 bg-emerald-50/20 ring-2 ring-emerald-500/20 focus:border-emerald-500 dark:border-emerald-500 dark:bg-emerald-950/20"
-                            : isByouthInvalid
+                            : isInputError
                             ? "border-red-400 bg-red-50/20 ring-2 ring-red-500/20 focus:border-red-500 dark:border-red-500 dark:bg-red-950/20"
                             : "border-zinc-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700"
                         }`}
                         required
                       />
-                      {isByouthValid && (
+                      {isInputSuccess && (
                         <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
                           <CheckCircle2 className="h-5 w-5 text-emerald-500" />
                         </div>
                       )}
                     </div>
 
-                    {isByouth ? (
-                      isByouthValid ? (
-                        <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          Valid booth format ({trimmed.toUpperCase()})
-                        </p>
-                      ) : isByouthInvalid ? (
-                        <p className="mt-2 flex items-center justify-center gap-1 text-center text-xs font-medium text-red-500 dark:text-red-400">
-                          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                          Must be a number followed by Y (e.g. 1Y, 10Y, 20Y)
-                        </p>
-                      ) : (
-                        <p className="mt-1.5 text-center text-xs text-zinc-400">
-                          Must be a number followed by Y (e.g. 1Y, 10Y, 20Y)
-                        </p>
-                      )
-                    ) : (
-                      <p className="mt-1.5 text-center text-xs text-zinc-400">
-                        Make sure your booth number is accurate before requesting.
-                      </p>
-                    )}
+                    {validationMessage}
                   </div>
 
                   <Button

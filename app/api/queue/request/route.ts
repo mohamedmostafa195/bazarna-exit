@@ -10,6 +10,8 @@ import { prisma } from "@/lib/prisma";
 import { getEntranceLabel, isEntranceType } from "@/lib/entrance";
 import { parseJsonBody, withApiHandler } from "@/lib/api-error";
 
+import { validateBoothAgainstZones } from "@/lib/booth-validation";
+
 export async function POST(request: Request) {
   return withApiHandler(async () => {
     const { session, error } = await requireBrand(request);
@@ -39,10 +41,23 @@ export async function POST(request: Request) {
       );
     }
 
+    const event = await getActiveEventReady(entranceType);
+    if (!event) {
+      return NextResponse.json({ error: "No active event" }, { status: 404 });
+    }
+
     let finalBoothNumber = boothNumber;
 
-    // Strict validation for Byouth: must be number + Y (e.g. 1Y, 14Y, 105Y)
-    if (entranceType === "BYOUTH") {
+    if (event.zones && event.zones.length > 0) {
+      const boothValidation = validateBoothAgainstZones(boothNumber, event.zones);
+      if (!boothValidation.valid) {
+        return NextResponse.json(
+          { error: boothValidation.error },
+          { status: 400 }
+        );
+      }
+      finalBoothNumber = boothValidation.formattedBooth!;
+    } else if (entranceType === "BYOUTH") {
       const byouthPattern = /^(\d+)[yY]$/;
       const match = boothNumber.match(byouthPattern);
       if (!match) {
@@ -54,11 +69,6 @@ export async function POST(request: Request) {
         );
       }
       finalBoothNumber = `${match[1]}Y`;
-    }
-
-    const event = await getActiveEventReady(entranceType);
-    if (!event) {
-      return NextResponse.json({ error: "No active event" }, { status: 404 });
     }
 
     const otherTicket = await getActiveTicketInOtherEntrance(

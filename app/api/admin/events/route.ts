@@ -47,6 +47,7 @@ function parseEventPayload(body: unknown) {
       eventDate,
       queueOpenTime,
       queueCloseTime,
+      zones: parsed.data.zones ?? [],
     },
   };
 }
@@ -55,6 +56,7 @@ export const GET = adminRoute(async () => {
   return withApiHandler(async () => {
     const events = await prisma.event.findMany({
       orderBy: { eventDate: "desc" },
+      include: { zones: { orderBy: { name: "asc" } } },
     });
 
     return NextResponse.json({ events });
@@ -74,11 +76,24 @@ export const POST = adminRoute(async (request) => {
 
     const event = await prisma.event.create({
       data: {
-        ...parsed.data!,
+        eventName: parsed.data!.eventName,
+        entranceType: parsed.data!.entranceType,
+        eventDate: parsed.data!.eventDate,
+        queueOpenTime: parsed.data!.queueOpenTime,
+        queueCloseTime: parsed.data!.queueCloseTime,
         isActive: true,
         nextQueueNumber: 1,
         currentServingNumber: null,
+        zones: parsed.data!.zones.length > 0
+          ? {
+              create: parsed.data!.zones.map((z) => ({
+                name: z.name.trim().toUpperCase(),
+                limit: z.limit,
+              })),
+            }
+          : undefined,
       },
+      include: { zones: { orderBy: { name: "asc" } } },
     });
 
     await deactivateSiblingEvents(parsed.data!.entranceType, event.id);

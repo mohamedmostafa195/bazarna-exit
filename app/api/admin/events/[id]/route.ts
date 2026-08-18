@@ -44,6 +44,10 @@ export const PATCH = adminRoute(async (request, ctx) => {
       );
     }
 
+    if (parsed.data.zones !== undefined) {
+      await prisma.eventZone.deleteMany({ where: { eventId: id } });
+    }
+
     const event = await prisma.event.update({
       where: { id },
       data: {
@@ -52,7 +56,16 @@ export const PATCH = adminRoute(async (request, ctx) => {
         eventDate,
         queueOpenTime,
         queueCloseTime,
+        zones: parsed.data.zones && parsed.data.zones.length > 0
+          ? {
+              create: parsed.data.zones.map((z) => ({
+                name: z.name.trim().toUpperCase(),
+                limit: z.limit,
+              })),
+            }
+          : undefined,
       },
+      include: { zones: { orderBy: { name: "asc" } } },
     });
 
     const dateChanged =

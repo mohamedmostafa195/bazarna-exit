@@ -13,7 +13,13 @@ import {
   getEntranceLabel,
   type EntranceType,
 } from "@/lib/entrance";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
+
+interface EventZone {
+  id?: string;
+  name: string;
+  limit: number;
+}
 
 interface Event {
   id: string;
@@ -23,6 +29,7 @@ interface Event {
   queueOpenTime: string;
   queueCloseTime: string;
   isActive: boolean;
+  zones?: EventZone[];
 }
 
 export default function SettingsPage() {
@@ -38,6 +45,9 @@ export default function SettingsPage() {
     queueOpenTime: "21:00",
     queueCloseTime: "23:00",
   });
+  const [zones, setZones] = useState<Array<{ name: string; limit: number }>>([
+    { name: "A", limit: 50 },
+  ]);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const loadFormForEntrance = useCallback(
@@ -53,6 +63,11 @@ export default function SettingsPage() {
           queueOpenTime: toTimeInputValue(new Date(active.queueOpenTime)),
           queueCloseTime: toTimeInputValue(new Date(active.queueCloseTime)),
         });
+        setZones(
+          active.zones && active.zones.length > 0
+            ? active.zones.map((z) => ({ name: z.name, limit: z.limit }))
+            : [{ name: "A", limit: 50 }]
+        );
       } else {
         setEditingId(null);
         setForm({
@@ -61,6 +76,7 @@ export default function SettingsPage() {
           queueOpenTime: "21:00",
           queueCloseTime: "23:00",
         });
+        setZones([{ name: "A", limit: 50 }]);
       }
     },
     []
@@ -102,6 +118,16 @@ export default function SettingsPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    const validZones = zones
+      .map((z) => ({ name: z.name.trim().toUpperCase(), limit: Number(z.limit) }))
+      .filter((z) => z.name.length > 0 && !isNaN(z.limit) && z.limit > 0);
+
+    if (zones.length > 0 && validZones.length !== zones.length) {
+      toast.error("Please fill in valid zone names and positive numeric limits");
+      return;
+    }
+
     setSaving(true);
 
     const payload = {
@@ -110,6 +136,7 @@ export default function SettingsPage() {
       eventDate: form.eventDate,
       queueOpenAt: combineDateAndTime(form.eventDate, form.queueOpenTime),
       queueCloseAt: combineDateAndTime(form.eventDate, form.queueCloseTime),
+      zones: validZones,
     };
 
     const url = editingId
@@ -242,8 +269,8 @@ export default function SettingsPage() {
           className="mb-6"
         />
 
-        <Card title={`${getEntranceLabel(entrance)} Queue Time Window`}>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <Card title={`${getEntranceLabel(entrance)} Queue Time Window & Zones`}>
+          <form onSubmit={handleSubmit} className="space-y-5">
             <Input
               label="Event Name"
               value={form.eventName}
@@ -277,6 +304,90 @@ export default function SettingsPage() {
                 required
               />
             </div>
+
+            {/* Event Zones Configuration */}
+            <div className="space-y-3 rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    Event Zones & Booth Limits
+                  </h3>
+                  <p className="text-xs text-zinc-500">
+                    Set zone letters and maximum number limits (e.g. Zone A limit 50 means 1A–50A are allowed).
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const nextLetter = String.fromCharCode(65 + zones.length);
+                    setZones([...zones, { name: nextLetter, limit: 50 }]);
+                  }}
+                  className="h-8 gap-1 text-xs"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add Zone
+                </Button>
+              </div>
+
+              {zones.length === 0 ? (
+                <p className="py-2 text-center text-xs text-zinc-400">
+                  No zones added yet. Click &quot;Add Zone&quot; to configure booth ranges.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {zones.map((zone, idx) => (
+                    <div key={idx} className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <label className="text-[11px] font-medium text-zinc-500">
+                          Zone Name
+                        </label>
+                        <Input
+                          value={zone.name}
+                          placeholder="e.g. A, B, C"
+                          onChange={(e) => {
+                            const updated = [...zones];
+                            updated[idx].name = e.target.value;
+                            setZones(updated);
+                          }}
+                          className="h-9 text-sm uppercase"
+                          required
+                        />
+                      </div>
+                      <div className="w-32">
+                        <label className="text-[11px] font-medium text-zinc-500">
+                          Limit (1 to N)
+                        </label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={zone.limit || ""}
+                          placeholder="e.g. 50"
+                          onChange={(e) => {
+                            const updated = [...zones];
+                            updated[idx].limit = parseInt(e.target.value, 10) || 0;
+                            setZones(updated);
+                          }}
+                          className="h-9 text-sm"
+                          required
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setZones(zones.filter((_, i) => i !== idx));
+                        }}
+                        title="Remove Zone"
+                        className="mt-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <p className="text-sm text-zinc-500">
               Brands can only request exit numbers between these times on the
               event date. Times use your device&apos;s local timezone.
@@ -302,7 +413,7 @@ export default function SettingsPage() {
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                  Past Events
+                  Recorded Events
                 </h2>
                 <p className="text-xs text-zinc-500">
                   {events.length} event{events.length === 1 ? "" : "s"} recorded
@@ -346,6 +457,19 @@ export default function SettingsPage() {
                       {formatTime(new Date(event.queueOpenTime))} –{" "}
                       {formatTime(new Date(event.queueCloseTime))}
                     </p>
+                    {event.zones && event.zones.length > 0 && (
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        <span className="text-xs font-medium text-zinc-500">Zones:</span>
+                        {event.zones.map((z) => (
+                          <span
+                            key={z.name}
+                            className="inline-flex items-center rounded-md bg-orange-50 px-2 py-0.5 text-xs font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-300"
+                          >
+                            Zone {z.name.toUpperCase()} (1–{z.limit})
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <button
