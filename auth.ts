@@ -90,7 +90,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
 
       // Keep JWT role in sync with the database (important on Vercel after seeding admins).
-      if (token.id && typeof token.id === "string") {
+      if (
+        process.env.NEXT_RUNTIME !== "edge" &&
+        token.id &&
+        typeof token.id === "string"
+      ) {
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.id },
