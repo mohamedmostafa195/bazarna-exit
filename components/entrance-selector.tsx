@@ -65,7 +65,7 @@ export function EntranceSelector() {
           alt="Bazarna"
           width={48}
           height={48}
-          className="absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-20 rounded-xl shadow-sm sm:hidden"
+          className="absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-20 h-12 w-12 rounded-xl shadow-sm sm:hidden"
         />
 
         <button
@@ -84,7 +84,7 @@ export function EntranceSelector() {
             alt="Bazarna"
             width={64}
             height={64}
-            className="hidden rounded-xl sm:mx-auto sm:block"
+            className="hidden h-16 w-16 rounded-xl sm:mx-auto sm:block"
           />
           <h1 className="mt-0 text-3xl font-bold text-zinc-900 sm:mt-4 dark:text-zinc-100">
             Select Your Exit Type
@@ -111,7 +111,7 @@ export function EntranceSelector() {
                   alt={getEntranceLabel(type)}
                   width={64}
                   height={64}
-                  className="shrink-0 rounded-xl object-cover"
+                  className="h-16 w-16 shrink-0 rounded-xl object-cover"
                 />
                 <div className="min-w-0 flex-1 text-left">
                   <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
