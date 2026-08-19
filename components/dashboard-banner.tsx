@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 /** Swap this path to change the banner image. */
 export const DASHBOARD_BANNER_IMAGE = "/image/DashboardBanner.jpg";
 
@@ -10,6 +12,17 @@ export function DashboardBanner({
   children: React.ReactNode;
   overlay?: React.ReactNode;
 }) {
+  useEffect(() => {
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
+    link.href = DASHBOARD_BANNER_IMAGE;
+    document.head.appendChild(link);
+    return () => {
+      document.head.removeChild(link);
+    };
+  }, []);
+
   return (
     <div className="relative">
       <div

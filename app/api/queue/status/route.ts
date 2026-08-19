@@ -57,52 +57,52 @@ export async function GET(request: Request) {
     const eventDayPassed = isEventDayPassed(event.eventDate);
     const queueEndedToday = windowState === "closed" && !eventDayPassed;
 
-    const ticket = await prisma.queueTicket.findUnique({
-      where: {
-        userId_eventId: {
-          userId: session!.user.id,
-          eventId: event.id,
+    const [ticket, activeEvents] = await Promise.all([
+      prisma.queueTicket.findUnique({
+        where: {
+          userId_eventId: {
+            userId: session!.user.id,
+            eventId: event.id,
+          },
         },
-      },
-    });
+      }),
+      prisma.event.findMany({
+        where: { isActive: true },
+        select: { id: true },
+      }),
+    ]);
 
-    let otherEntranceTicket = null;
-    if (!ticket) {
-      const otherTicket = await getActiveTicketInOtherEntrance(
-        session!.user.id,
-        event.id
-      );
-      if (otherTicket && isEntranceType(otherTicket.event.entranceType)) {
-        otherEntranceTicket = {
-          id: otherTicket.id,
-          queueNumber: otherTicket.queueNumber,
-          status: otherTicket.status,
-          qrToken: otherTicket.qrToken,
-          entranceType: otherTicket.event.entranceType as EntranceType,
-          entranceLabel: getEntranceLabel(otherTicket.event.entranceType),
-          eventName: otherTicket.event.eventName,
-        };
-      }
-    }
-
-    // Query active tickets across active events to collect occupied booth numbers
-    const activeEvents = await prisma.event.findMany({
-      where: { isActive: true },
-      select: { id: true },
-    });
     const activeEventIds = activeEvents.map((e) => e.id);
 
-    const activeTickets = await prisma.queueTicket.findMany({
-      where: {
-        eventId: { in: activeEventIds.length > 0 ? activeEventIds : [event.id] },
-        userId: { not: session!.user.id },
-      },
-      select: {
-        user: {
-          select: { boothNumber: true },
+    const [otherTicket, activeTickets] = await Promise.all([
+      !ticket
+        ? getActiveTicketInOtherEntrance(session!.user.id, event.id)
+        : Promise.resolve(null),
+      prisma.queueTicket.findMany({
+        where: {
+          eventId: { in: activeEventIds.length > 0 ? activeEventIds : [event.id] },
+          userId: { not: session!.user.id },
         },
-      },
-    });
+        select: {
+          user: {
+            select: { boothNumber: true },
+          },
+        },
+      }),
+    ]);
+
+    let otherEntranceTicket = null;
+    if (otherTicket && isEntranceType(otherTicket.event.entranceType)) {
+      otherEntranceTicket = {
+        id: otherTicket.id,
+        queueNumber: otherTicket.queueNumber,
+        status: otherTicket.status,
+        qrToken: otherTicket.qrToken,
+        entranceType: otherTicket.event.entranceType as EntranceType,
+        entranceLabel: getEntranceLabel(otherTicket.event.entranceType),
+        eventName: otherTicket.event.eventName,
+      };
+    }
 
     const occupiedBooths = Array.from(
       new Set(

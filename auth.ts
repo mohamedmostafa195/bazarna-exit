@@ -87,10 +87,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       if (trigger === "update" && session?.entranceType) {
         token.entranceType = session.entranceType;
+        return token;
       }
+
+      const DB_SYNC_INTERVAL_MS = 2 * 60 * 1000;
+      const lastSync =
+        typeof token.dbSyncedAt === "number" ? token.dbSyncedAt : 0;
+      const shouldSyncDb =
+        Boolean(user) || Date.now() - lastSync >= DB_SYNC_INTERVAL_MS;
 
       // Keep JWT role in sync with the database (important on Vercel after seeding admins).
       if (
+        shouldSyncDb &&
         process.env.NEXT_RUNTIME !== "edge" &&
         token.id &&
         typeof token.id === "string"
@@ -112,6 +120,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             if (trigger !== "update" || !session?.entranceType) {
               token.entranceType = dbUser.entranceType;
             }
+            token.dbSyncedAt = Date.now();
           }
         } catch (error) {
           console.error("[auth] Failed to refresh user from database:", error);

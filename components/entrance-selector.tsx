@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/fetch-api";
 import {
@@ -23,7 +23,12 @@ export function EntranceSelector() {
   const [loggingOut, setLoggingOut] = useState(false);
 
   async function selectEntrance(entranceType: EntranceType) {
+    if (loading) return;
     setLoading(entranceType);
+
+    const isAdmin = session?.user?.role === "ADMIN";
+    const target = isAdmin ? "/admin/dashboard" : "/dashboard";
+
     const { ok, data } = await fetchApi<{ error?: string }>("/api/entrance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -36,11 +41,8 @@ export function EntranceSelector() {
       return;
     }
 
-    await update({ entranceType });
-
-    const isAdmin = session?.user?.role === "ADMIN";
-    router.replace(isAdmin ? "/admin/dashboard" : "/dashboard");
-    router.refresh();
+    void update({ entranceType });
+    router.replace(target);
   }
 
   async function handleLogout() {
@@ -56,6 +58,13 @@ export function EntranceSelector() {
   }
 
   const options: EntranceType[] = ["BAZARNA", "BYOUTH"];
+
+  useEffect(() => {
+    router.prefetch("/dashboard");
+    router.prefetch("/admin/dashboard");
+    const img = new window.Image();
+    img.src = "/image/DashboardBanner.jpg";
+  }, [router]);
 
   return (
     <DashboardBanner>
@@ -101,9 +110,11 @@ export function EntranceSelector() {
               disabled={loading !== null}
               onClick={() => selectEntrance(type)}
               className={cn(
-                "group w-full rounded-2xl border-2 border-zinc-200 bg-white p-6 text-left shadow-sm transition-all hover:border-orange-500 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-orange-500 sm:p-8",
-                loading === type && "border-orange-500 opacity-70"
+                "group w-full rounded-2xl border-2 border-zinc-200 bg-white p-6 text-left shadow-sm transition-colors active:scale-[0.98] hover:border-orange-500 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-orange-500 sm:p-8",
+                loading === type && "border-orange-500 opacity-70",
+                loading !== null && loading !== type && "opacity-60"
               )}
+              style={{ touchAction: "manipulation" }}
             >
               <div className="flex items-start gap-4">
                 <Image

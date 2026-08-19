@@ -60,17 +60,40 @@ interface QueueData {
   user: { brandName: string; boothNumber: string };
 }
 
+const QUEUE_CACHE_KEY = "bazarna_queue_status_v1";
+
+function readQueueCache(): QueueData | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(QUEUE_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as QueueData) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeQueueCache(data: QueueData) {
+  try {
+    sessionStorage.setItem(QUEUE_CACHE_KEY, JSON.stringify(data));
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
 /* ─────────────────────────────────────────────────────────── */
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const [data, setData]   = useState<QueueData | null>(null);
-  const [loading, setLoading]       = useState(true);
+  const [data, setData]   = useState<QueueData | null>(() => readQueueCache());
+  const [loading, setLoading]       = useState(() => readQueueCache() === null);
   const [requesting, setRequesting] = useState(false);
-  const [currentServing, setCurrentServing] = useState<number | null>(null);
+  const [currentServing, setCurrentServing] = useState<number | null>(() => {
+    const cached = readQueueCache();
+    return cached?.event?.currentServingNumber ?? null;
+  });
   const [selectedZone,   setSelectedZone]   = useState("");
   const [selectedNumber, setSelectedNumber] = useState("");
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(() => readQueueCache() !== null);
 
   /* fetch -------------------------------------------------- */
   const fetchStatus = useCallback(async () => {
@@ -81,6 +104,7 @@ export default function DashboardPage() {
     if (status === 400 && data.needsEntrance) { window.location.href = "/"; return; }
     if (ok) {
       setData(data);
+      writeQueueCache(data);
       setCurrentServing(data.event?.currentServingNumber ?? null);
       if (data.user?.boothNumber && data.user.boothNumber !== "—" && data.user.boothNumber !== "N/A") {
         const p = parseBoothNumber(data.user.boothNumber);
@@ -88,7 +112,7 @@ export default function DashboardPage() {
       }
     }
     setLoading(false);
-    requestAnimationFrame(() => setTimeout(() => setReady(true), 40));
+    setReady(true);
   }, []);
 
   useEffect(() => { fetchStatus(); }, [fetchStatus]);
@@ -156,20 +180,6 @@ export default function DashboardPage() {
   }
 
   /* ═══════════════════════════════════════════════════════ */
-  /*  LOADING                                                */
-  /* ═══════════════════════════════════════════════════════ */
-  if (loading) return (
-    <AppShell>
-      <div className="flex min-h-[80vh] items-center justify-center">
-        <span className="relative flex h-12 w-12">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-20" />
-          <span className="relative inline-flex h-12 w-12 animate-spin rounded-full border-[3px] border-zinc-200 border-t-orange-500 dark:border-zinc-700" />
-        </span>
-      </div>
-    </AppShell>
-  );
-
-  /* ═══════════════════════════════════════════════════════ */
   /*  PAGE                                                   */
   /* ═══════════════════════════════════════════════════════ */
   return (
@@ -188,7 +198,7 @@ export default function DashboardPage() {
       >
       <div
         className="mx-auto w-full max-w-4xl px-4 pb-16 pt-[216px] sm:px-20 sm:pt-48"
-        style={{ opacity: ready ? 1 : 0, transform: ready ? "none" : "translateY(18px)", transition: "opacity .5s cubic-bezier(.22,1,.36,1), transform .5s cubic-bezier(.22,1,.36,1)" }}
+        style={{ opacity: ready ? 1 : 0, transform: ready ? "none" : "translateY(8px)", transition: "opacity .2s ease, transform .2s ease" }}
       >
         <div className="mb-6 hidden sm:block">
           <h2 className="text-[24px] font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100">
@@ -196,10 +206,24 @@ export default function DashboardPage() {
           </h2>
         </div>
 
+        {loading && !data && (
+          <Card>
+            <div className="animate-pulse space-y-5 py-2">
+              <div className="h-4 w-40 rounded bg-zinc-200 dark:bg-zinc-800" />
+              <div className="h-11 w-full rounded-xl bg-zinc-200 dark:bg-zinc-800" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="h-11 rounded-xl bg-zinc-200 dark:bg-zinc-800" />
+                <div className="h-11 rounded-xl bg-zinc-200 dark:bg-zinc-800" />
+              </div>
+              <div className="h-12 w-full rounded-xl bg-zinc-200 dark:bg-zinc-800" />
+            </div>
+          </Card>
+        )}
+
         {/* ════════════════════════════════════════
             STATE: no event
         ════════════════════════════════════════ */}
-        {!data?.event && (
+        {data && !data.event && (
           <Card>
             <EmptyState emoji="🕐" title="No active event" sub="The admin will open the queue soon." />
           </Card>
