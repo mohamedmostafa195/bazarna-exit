@@ -179,10 +179,10 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={switchEntrance}
-            className="absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-20 inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/55 px-4 py-2 text-[18px] font-bold tracking-tight text-zinc-900 shadow-sm backdrop-blur-md transition-colors hover:text-orange-500 dark:border-white/10 dark:bg-zinc-900/55 dark:text-zinc-100 sm:hidden"
+            aria-label="Back to entrance selection"
+            className="absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-white/55 text-zinc-900 shadow-sm backdrop-blur-md transition-colors hover:text-orange-500 dark:border-white/10 dark:bg-zinc-900/55 dark:text-zinc-100 sm:hidden"
           >
             <ArrowLeft className="h-5 w-5 shrink-0" />
-            <span>Exit Queue</span>
           </button>
         }
       >
