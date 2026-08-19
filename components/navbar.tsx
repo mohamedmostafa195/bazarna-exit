@@ -8,6 +8,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/fetch-api";
 import {
+  ArrowLeft,
   LayoutDashboard,
   Settings,
   Monitor,
@@ -32,6 +33,7 @@ export function Navbar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
+  const isBrandDashboard = !isAdmin && pathname === "/dashboard";
   const links = isAdmin ? adminLinks : [];
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -50,28 +52,64 @@ export function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
+    <header
+      className={cn(
+        "sticky top-0 z-50 border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80",
+        isBrandDashboard && "hidden sm:block"
+      )}
+    >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-        <Link
-          href="/select-entrance"
-          onClick={async (e) => {
-            e.preventDefault();
-            await fetchApi("/api/entrance", { method: "DELETE" });
-            window.location.href = "/select-entrance";
-          }}
-          className="flex items-center gap-2"
-        >
-          <Image
-            src="/image/LogoBazarna.jpg"
-            alt="Bazarna"
-            width={36}
-            height={36}
-            className="rounded-lg"
-          />
-          <span className="hidden font-semibold text-zinc-900 dark:text-zinc-100 sm:inline">
-            Bazarna Exit Queue
-          </span>
-        </Link>
+        {isBrandDashboard ? (
+          <div>
+            <button
+              type="button"
+              onClick={async () => {
+                await fetchApi("/api/entrance", { method: "DELETE" });
+                window.location.href = "/select-entrance";
+              }}
+              className="hidden"
+            >
+              <ArrowLeft className="h-5 w-5 shrink-0" />
+              <span>Exit Queue</span>
+            </button>
+            <div className="hidden items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400 sm:flex">
+              <Link
+                href="/select-entrance"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  await fetchApi("/api/entrance", { method: "DELETE" });
+                  window.location.href = "/select-entrance";
+                }}
+                className="transition-colors hover:text-orange-500"
+              >
+                Home
+              </Link>
+              <span>/</span>
+              <span className="font-medium text-zinc-900 dark:text-zinc-100">Exit Queue</span>
+            </div>
+          </div>
+        ) : (
+          <Link
+            href="/select-entrance"
+            onClick={async (e) => {
+              e.preventDefault();
+              await fetchApi("/api/entrance", { method: "DELETE" });
+              window.location.href = "/select-entrance";
+            }}
+            className="flex items-center gap-2"
+          >
+            <Image
+              src="/image/LogoBazarna.jpg"
+              alt="Bazarna"
+              width={36}
+              height={36}
+              className="rounded-lg"
+            />
+            <span className="hidden font-semibold text-zinc-900 dark:text-zinc-100 sm:inline">
+              Bazarna Exit Queue
+            </span>
+          </Link>
+        )}
 
         <nav className="flex items-center gap-1">
           {links.map(({ href, label, icon: Icon }) => (
@@ -89,14 +127,16 @@ export function Navbar() {
               <span className="hidden md:inline">{label}</span>
             </Link>
           ))}
-          <button
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className="ml-2 flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-zinc-800"
-          >
-            <LogOut className="h-4 w-4" />
-            <span className="hidden md:inline">Logout</span>
-          </button>
+          {!isBrandDashboard && (
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="ml-2 flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden md:inline">Logout</span>
+            </button>
+          )}
         </nav>
       </div>
     </header>

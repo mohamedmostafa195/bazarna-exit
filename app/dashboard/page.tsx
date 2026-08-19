@@ -13,11 +13,11 @@ import { fetchApi } from "@/lib/fetch-api";
 import {
   type EntranceType,
   getEntranceImage,
-  getEntranceLabel,
   isEntranceType,
 } from "@/lib/entrance";
-import { CheckCircle2, AlertCircle, Clock, ChevronRight } from "lucide-react";
+import { CheckCircle2, AlertCircle, Clock, ChevronRight, ArrowLeft } from "lucide-react";
 import { BoothNumberPicker } from "@/components/booth-number-picker";
+import { DashboardBanner } from "@/components/dashboard-banner";
 import {
   parseBoothNumber,
   normalizeBoothCode,
@@ -174,53 +174,27 @@ export default function DashboardPage() {
   /* ═══════════════════════════════════════════════════════ */
   return (
     <AppShell>
+      <DashboardBanner
+        overlay={
+          <button
+            type="button"
+            onClick={switchEntrance}
+            className="absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-20 inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/55 px-4 py-2 text-[18px] font-bold tracking-tight text-zinc-900 shadow-sm backdrop-blur-md transition-colors hover:text-orange-500 dark:border-white/10 dark:bg-zinc-900/55 dark:text-zinc-100 sm:hidden"
+          >
+            <ArrowLeft className="h-5 w-5 shrink-0" />
+            <span>Exit Queue</span>
+          </button>
+        }
+      >
       <div
-        className="mx-auto w-full max-w-sm px-4 pb-16 pt-6"
+        className="mx-auto w-full max-w-4xl px-4 pb-16 pt-[216px] sm:px-20 sm:pt-48"
         style={{ opacity: ready ? 1 : 0, transform: ready ? "none" : "translateY(18px)", transition: "opacity .5s cubic-bezier(.22,1,.36,1), transform .5s cubic-bezier(.22,1,.36,1)" }}
       >
-
-        {/* ── HEADER ── */}
-        <header className="mb-7 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="truncate text-[11px] font-bold uppercase tracking-[.15em] text-zinc-400">
-              Welcome back
-            </p>
-            <h1 className="truncate text-[1.35rem] font-extrabold leading-snug text-zinc-900 dark:text-white">
-              {brandName}
-            </h1>
-            {data?.user?.boothNumber && data.user.boothNumber !== "—" && data.user.boothNumber !== "N/A" && (
-              <p className="mt-0.5 truncate text-xs text-zinc-400">
-                Booth <span className="font-bold text-zinc-600 dark:text-zinc-300">{data.user.boothNumber}</span>
-              </p>
-            )}
-          </div>
-
-          {/* Exit gate chip */}
-          {currentEntrance ? (
-            <button
-              type="button"
-              onClick={switchEntrance}
-              className="group flex shrink-0 items-center gap-2 rounded-2xl border border-zinc-200 bg-white px-3 py-2 shadow-sm transition-all duration-200 hover:border-orange-400 hover:shadow active:scale-95 dark:border-zinc-800 dark:bg-zinc-900"
-            >
-              <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/5">
-                <Image src={getEntranceImage(currentEntrance)} alt="" fill className="object-cover transition-transform duration-300 group-hover:scale-110" />
-              </span>
-              <span className="text-left">
-                <span className="flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-widest text-zinc-400">
-                  Exit <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                </span>
-                <span className="block text-sm font-extrabold leading-tight text-zinc-900 dark:text-zinc-100">
-                  {getEntranceLabel(currentEntrance)}
-                </span>
-              </span>
-            </button>
-          ) : (
-            <button onClick={switchEntrance} type="button"
-              className="shrink-0 rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-500 transition hover:border-orange-400 dark:border-zinc-700 dark:bg-zinc-900">
-              Switch exit
-            </button>
-          )}
-        </header>
+        <div className="mb-6 hidden sm:block">
+          <h2 className="text-[24px] font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100">
+            Exit Queue
+          </h2>
+        </div>
 
         {/* ════════════════════════════════════════
             STATE: no event
@@ -247,7 +221,7 @@ export default function DashboardPage() {
           <Card>
             <div className="flex flex-col items-center py-2 text-center">
               <span className="relative h-20 w-20 overflow-hidden rounded-3xl shadow-md">
-                <Image src={getEntranceImage(data.otherEntranceTicket.entranceType)} alt="" fill className="object-cover" />
+                <Image src={getEntranceImage(data.otherEntranceTicket.entranceType)} alt="" fill sizes="80px" className="object-cover" />
               </span>
               <p className="mt-5 text-lg font-extrabold text-zinc-900 dark:text-zinc-100">
                 Active Number in {data.otherEntranceTicket.entranceLabel} Exit
@@ -321,11 +295,23 @@ export default function DashboardPage() {
 
               return (
                 <div>
+                  <div className="mb-6">
+                    <p className="truncate text-[16px] font-normal leading-snug text-zinc-900 dark:text-white">
+                      <span className="text-zinc-500 dark:text-zinc-400">Brand name:</span>{" "}
+                      {brandName}
+                    </p>
+                    {data?.user?.boothNumber && data.user.boothNumber !== "—" && data.user.boothNumber !== "N/A" && (
+                      <p className="mt-0.5 truncate text-xs text-zinc-400">
+                        Booth <span className="font-bold text-zinc-600 dark:text-zinc-300">{data.user.boothNumber}</span>
+                      </p>
+                    )}
+                  </div>
+
                   {/* Entrance chip */}
                   {currentEntrance && (
-                    <div className="mb-5 flex items-center gap-2 rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2.5 text-xs dark:border-zinc-700 dark:bg-zinc-800/50">
+                    <div className="mb-6 flex items-center gap-2 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-2 text-xs dark:border-zinc-700 dark:bg-zinc-800/50">
                       <span className="relative h-4 w-4 shrink-0 overflow-hidden rounded">
-                        <Image src={getEntranceImage(currentEntrance)} alt="" fill className="object-cover" />
+                        <Image src={getEntranceImage(currentEntrance)} alt="" fill sizes="16px" className="object-cover" />
                       </span>
                       <span className="font-semibold text-zinc-600 dark:text-zinc-400">{data.entranceLabel} queue</span>
                       <span className="ml-auto h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
@@ -333,7 +319,7 @@ export default function DashboardPage() {
                   )}
 
                   {/* Zone + Booth */}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col">
                       <label className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-widest text-zinc-500">Zone</label>
                       <select
@@ -356,7 +342,7 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Inline validation */}
-                  <div className="mt-2.5 min-h-[20px]">
+                  <div className="mt-4 min-h-[24px]">
                     {allFull  ? <Msg error>All booths are taken</Msg>
                     : zoneFull ? <Msg error>Zone {selectedZone} is full</Msg>
                     : isTaken  ? <Msg error>Booth {selectedNumber}{selectedZone} is taken</Msg>
@@ -423,13 +409,26 @@ export default function DashboardPage() {
 
               {/* Top row */}
               <div className="flex items-center justify-between px-5 pt-4">
-                <div className="flex items-center gap-2">
-                  {currentEntrance && (
-                    <span className="relative h-6 w-6 overflow-hidden rounded-lg">
-                      <Image src={getEntranceImage(currentEntrance)} alt="" fill className="object-cover" />
+                <div className="min-w-0">
+                  <p className="truncate text-[16px] font-normal text-zinc-900 dark:text-zinc-100">
+                    <span className="text-zinc-500 dark:text-zinc-400">Brand name:</span>{" "}
+                    {brandName}
+                  </p>
+                  <div className="mt-1 flex items-center gap-2">
+                    {currentEntrance && (
+                      <span className="relative h-6 w-6 overflow-hidden rounded-lg">
+                        <Image src={getEntranceImage(currentEntrance)} alt="" fill sizes="24px" className="object-cover" />
+                      </span>
+                    )}
+                    <span className="truncate text-[10px] font-extrabold uppercase tracking-widest text-zinc-400">
+                      {data.entranceLabel} Exit
                     </span>
+                  </div>
+                  {data?.user?.boothNumber && data.user.boothNumber !== "—" && data.user.boothNumber !== "N/A" && (
+                    <p className="mt-1 truncate text-xs text-zinc-400">
+                      Booth <span className="font-bold text-zinc-600 dark:text-zinc-300">{data.user.boothNumber}</span>
+                    </p>
                   )}
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400">{data.entranceLabel} Exit</span>
                 </div>
                 <StatusBadge status={data.ticket.status} />
               </div>
@@ -469,6 +468,7 @@ export default function DashboardPage() {
         @keyframes popIn   { from{opacity:0;transform:scale(.55)} to{opacity:1;transform:scale(1)} }
         @keyframes shine   { 0%{transform:skewX(-12deg) translateX(-100%)} 100%{transform:skewX(-12deg) translateX(400%)} }
       `}</style>
+      </DashboardBanner>
     </AppShell>
   );
 }
@@ -478,7 +478,7 @@ export default function DashboardPage() {
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <div
-      className={`rounded-3xl border border-zinc-200/80 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 ${className}`}
+      className={`rounded-3xl border border-zinc-200/80 bg-white p-6 shadow-md dark:border-zinc-800 dark:bg-zinc-900 sm:p-10 ${className}`}
       style={{ animation: "fadeUp .35s ease both" }}
     >
       {children}
@@ -512,7 +512,7 @@ function ActionButton({ children, onClick, className = "" }: { children: React.R
 
 function Msg({ children, error }: { children: React.ReactNode; error?: boolean }) {
   return (
-    <p className={`flex items-center gap-1.5 text-xs font-semibold ${error ? "text-red-500" : "text-emerald-600 dark:text-emerald-400"}`}>
+    <p className={`flex items-center gap-1.5 text-xs font-semibold ${error ? "text-red-500" : "justify-center text-emerald-600 dark:text-emerald-400"}`}>
       {error
         ? <AlertCircle className="h-3.5 w-3.5 shrink-0" />
         : <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
