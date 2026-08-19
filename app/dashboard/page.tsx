@@ -13,8 +13,10 @@ import { fetchApi } from "@/lib/fetch-api";
 import {
   type EntranceType,
   getEntranceImage,
+  getEntranceLabel,
   isEntranceType,
 } from "@/lib/entrance";
+import { readQueueCache, writeQueueCache } from "@/lib/queue-cache";
 import { CheckCircle2, AlertCircle, Clock, ChevronRight, ArrowLeft } from "lucide-react";
 import { BoothNumberPicker } from "@/components/booth-number-picker";
 import { DashboardBanner } from "@/components/dashboard-banner";
@@ -60,40 +62,15 @@ interface QueueData {
   user: { brandName: string; boothNumber: string };
 }
 
-const QUEUE_CACHE_KEY = "bazarna_queue_status_v1";
-
-function readQueueCache(): QueueData | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem(QUEUE_CACHE_KEY);
-    return raw ? (JSON.parse(raw) as QueueData) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeQueueCache(data: QueueData) {
-  try {
-    sessionStorage.setItem(QUEUE_CACHE_KEY, JSON.stringify(data));
-  } catch {
-    /* ignore quota errors */
-  }
-}
-
 /* ─────────────────────────────────────────────────────────── */
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const [data, setData]   = useState<QueueData | null>(() => readQueueCache());
-  const [loading, setLoading]       = useState(() => readQueueCache() === null);
+  const [data, setData]   = useState<QueueData | null>(() => readQueueCache<QueueData>());
+  const [loading, setLoading]       = useState(() => readQueueCache<QueueData>() === null);
   const [requesting, setRequesting] = useState(false);
-  const [currentServing, setCurrentServing] = useState<number | null>(() => {
-    const cached = readQueueCache();
-    return cached?.event?.currentServingNumber ?? null;
-  });
   const [selectedZone,   setSelectedZone]   = useState("");
   const [selectedNumber, setSelectedNumber] = useState("");
-  const [ready, setReady] = useState(() => readQueueCache() !== null);
 
   /* fetch -------------------------------------------------- */
   const fetchStatus = useCallback(async () => {
@@ -105,17 +82,43 @@ export default function DashboardPage() {
     if (ok) {
       setData(data);
       writeQueueCache(data);
-      setCurrentServing(data.event?.currentServingNumber ?? null);
       if (data.user?.boothNumber && data.user.boothNumber !== "—" && data.user.boothNumber !== "N/A") {
         const p = parseBoothNumber(data.user.boothNumber);
         if (p) { setSelectedZone(prev => prev || p.zone); setSelectedNumber(prev => prev || String(p.number)); }
       }
     }
     setLoading(false);
-    setReady(true);
   }, []);
 
-  useEffect(() => { fetchStatus(); }, [fetchStatus]);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { ok, data: payload, status } = await fetchApi<
+        QueueData & { error?: string; needsEntrance?: boolean }
+      >("/api/queue/status");
+
+      if (cancelled) return;
+      if (status === 400 && payload.needsEntrance) {
+        window.location.href = "/";
+        return;
+      }
+      if (ok) {
+        setData(payload);
+        writeQueueCache(payload);
+        if (payload.user?.boothNumber && payload.user.boothNumber !== "—" && payload.user.boothNumber !== "N/A") {
+          const p = parseBoothNumber(payload.user.boothNumber);
+          if (p) {
+            setSelectedZone((prev) => prev || p.zone);
+            setSelectedNumber((prev) => prev || String(p.number));
+          }
+        }
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /* clear occupied ----------------------------------------- */
   useEffect(() => {
@@ -126,19 +129,51 @@ export default function DashboardPage() {
   }, [data?.occupiedBooths, selectedZone, selectedNumber]);
 
   /* socket ------------------------------------------------- */
-  const { lastUpdate } = useSocket(data?.event?.id ?? null, "/api/queue/status");
+  const { lastUpdate } = useSocket(data?.event?.id ?? null);
   useEffect(() => {
     if (!lastUpdate) return;
-    setCurrentServing(lastUpdate.currentServing);
-    const fromPoll    = Array.isArray(lastUpdate.occupiedBooths) ? (lastUpdate.occupiedBooths as string[]).map(b => normalizeBoothCode(b)).filter((b): b is string => !!b) : [];
-    const fromTickets = Array.isArray(lastUpdate.tickets) ? (lastUpdate.tickets as { boothNumber?: string }[]).map(t => normalizeBoothCode(t.boothNumber)).filter((b): b is string => !!b) : [];
-    const next = fromPoll.length > 0 ? fromPoll : fromTickets;
-    if (!data?.ticket && next.length > 0) setData(p => p ? { ...p, occupiedBooths: [...new Set(next)] } : p);
-    if (data?.ticket) {
-      const up = (lastUpdate.tickets as { queueNumber: number; status: string }[]).find(t => t.queueNumber === data.ticket!.queueNumber);
-      if (up) setData(p => p?.ticket ? { ...p, ticket: { ...p.ticket, status: up.status } } : p);
-    }
-  }, [lastUpdate, data?.ticket]);
+    setData((prev) => {
+      if (!prev?.event) return prev;
+
+      let next = prev;
+      if (prev.event.currentServingNumber !== lastUpdate.currentServing) {
+        next = {
+          ...next,
+          event: {
+            ...prev.event,
+            currentServingNumber: lastUpdate.currentServing,
+          },
+        };
+      }
+
+      const fromPoll = Array.isArray(lastUpdate.occupiedBooths)
+        ? (lastUpdate.occupiedBooths as string[])
+            .map((b) => normalizeBoothCode(b))
+            .filter((b): b is string => !!b)
+        : [];
+      const fromTickets = Array.isArray(lastUpdate.tickets)
+        ? (lastUpdate.tickets as { boothNumber?: string }[])
+            .map((t) => normalizeBoothCode(t.boothNumber))
+            .filter((b): b is string => !!b)
+        : [];
+      const occupied = fromPoll.length > 0 ? fromPoll : fromTickets;
+
+      if (!prev.ticket && occupied.length > 0) {
+        next = { ...next, occupiedBooths: [...new Set(occupied)] };
+      }
+
+      if (prev.ticket) {
+        const up = (
+          lastUpdate.tickets as { queueNumber: number; status: string }[]
+        ).find((t) => t.queueNumber === prev.ticket!.queueNumber);
+        if (up && up.status !== prev.ticket.status) {
+          next = { ...next, ticket: { ...prev.ticket, status: up.status } };
+        }
+      }
+
+      return next;
+    });
+  }, [lastUpdate]);
 
   /* derived ------------------------------------------------ */
   const openTime  = data?.event ? new Date(data.event.queueOpenTime)  : null;
@@ -198,13 +233,17 @@ export default function DashboardPage() {
       >
       <div
         className="mx-auto w-full max-w-4xl px-4 pb-16 pt-[216px] sm:px-20 sm:pt-48"
-        style={{ opacity: ready ? 1 : 0, transform: ready ? "none" : "translateY(8px)", transition: "opacity .2s ease, transform .2s ease" }}
+        style={{ opacity: 1, transform: "none" }}
       >
         <div className="mb-6 hidden sm:block">
           <h2 className="text-[24px] font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100">
             Exit Queue
           </h2>
         </div>
+
+        {loading && (
+          <p className="mb-3 text-center text-xs font-medium text-zinc-400">Updating queue…</p>
+        )}
 
         {loading && !data && (
           <Card>
@@ -223,7 +262,17 @@ export default function DashboardPage() {
         {/* ════════════════════════════════════════
             STATE: no event
         ════════════════════════════════════════ */}
-        {data && !data.event && (
+        {data && !data.event && loading && (
+          <Card>
+            <div className="animate-pulse space-y-5 py-2">
+              <div className="h-4 w-40 rounded bg-zinc-200 dark:bg-zinc-800" />
+              <div className="h-11 w-full rounded-xl bg-zinc-200 dark:bg-zinc-800" />
+              <div className="h-12 w-full rounded-xl bg-zinc-200 dark:bg-zinc-800" />
+            </div>
+          </Card>
+        )}
+
+        {data && !data.event && !loading && (
           <Card>
             <EmptyState emoji="🕐" title="No active event" sub="The admin will open the queue soon." />
           </Card>

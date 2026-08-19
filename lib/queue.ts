@@ -116,17 +116,12 @@ export function scheduleQueueBroadcast(eventId: string, delayMs = 300) {
 
 export async function getActiveTicketInOtherEntrance(
   userId: string,
-  currentEventId: string
+  currentEntranceType: string
 ) {
-  const currentEvent = await prisma.event.findUnique({
-    where: { id: currentEventId },
-  });
-  if (!currentEvent) return null;
-
   const otherEvent = await prisma.event.findFirst({
     where: {
       isActive: true,
-      entranceType: { not: currentEvent.entranceType },
+      entranceType: { not: currentEntranceType },
     },
   });
   if (!otherEvent) return null;

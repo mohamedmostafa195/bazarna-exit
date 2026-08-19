@@ -114,11 +114,10 @@ export function useSocket(
     s.on("connect_error", onConnectError);
 
     s.emit("join:event", eventId);
-    setConnected(s.connected);
 
-    if (!s.connected && pollUrl) {
-      poll().then((shouldContinue) => {
-        if (shouldContinue) startPollInterval();
+    if (s.connected) {
+      void Promise.resolve().then(() => {
+        if (!stopPollingRef.current) setConnected(true);
       });
     }
 

@@ -12,14 +12,13 @@ export function isEventDayPassed(eventDate: Date, now = new Date()): boolean {
  * Ensures brands can get fresh #1, #2… on the next event day.
  */
 export async function resetQueueIfEventDayPassed(
-  eventId: string
+  event: { id: string; eventDate: Date }
 ): Promise<boolean> {
-  const event = await prisma.event.findUnique({ where: { id: eventId } });
-  if (!event || !isEventDayPassed(event.eventDate)) {
+  if (!isEventDayPassed(event.eventDate)) {
     return false;
   }
 
-  await resetQueue(eventId);
+  await resetQueue(event.id);
   return true;
 }
 
@@ -27,7 +26,7 @@ export async function getActiveEventReady(entranceType?: string | null) {
   const event = await getActiveEvent(entranceType);
   if (!event) return null;
 
-  await resetQueueIfEventDayPassed(event.id);
+  await resetQueueIfEventDayPassed(event);
   return prisma.event.findUnique({
     where: { id: event.id },
     include: { zones: { orderBy: { name: "asc" } } },

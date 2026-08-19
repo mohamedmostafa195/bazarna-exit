@@ -12,13 +12,14 @@ import {
   getEntranceImage,
   getEntranceLabel,
 } from "@/lib/entrance";
+import { writeOptimisticEntranceCache } from "@/lib/queue-cache";
 import { cn } from "@/lib/utils";
 import { LogOut } from "lucide-react";
 import { DashboardBanner } from "@/components/dashboard-banner";
 
 export function EntranceSelector() {
   const router = useRouter();
-  const { data: session, update } = useSession();
+  const { data: session } = useSession();
   const [loading, setLoading] = useState<EntranceType | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -41,7 +42,10 @@ export function EntranceSelector() {
       return;
     }
 
-    void update({ entranceType });
+    writeOptimisticEntranceCache(entranceType, {
+      brandName: session?.user?.brandName ?? "Brand",
+      boothNumber: session?.user?.boothNumber ?? "—",
+    });
     router.replace(target);
   }
 
@@ -134,7 +138,7 @@ export function EntranceSelector() {
                 </div>
               </div>
               <span className="mt-4 block w-full text-end text-sm font-medium text-orange-600 group-hover:underline dark:text-orange-400">
-                {loading === type ? "Loading..." : "Continue →"}
+                {loading === type ? "Opening…" : "Continue →"}
               </span>
             </button>
           ))}

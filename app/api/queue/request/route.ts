@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
     const otherTicket = await getActiveTicketInOtherEntrance(
       session!.user.id,
-      event.id
+      event.entranceType
     );
 
     if (otherTicket && isEntranceType(otherTicket.event.entranceType)) {

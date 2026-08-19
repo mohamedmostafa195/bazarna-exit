@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     const eventDayPassed = isEventDayPassed(event.eventDate);
     const queueEndedToday = windowState === "closed" && !eventDayPassed;
 
-    const [ticket, activeEvents] = await Promise.all([
+    const [ticket, activeTickets] = await Promise.all([
       prisma.queueTicket.findUnique({
         where: {
           userId_eventId: {
@@ -66,22 +66,11 @@ export async function GET(request: Request) {
           },
         },
       }),
-      prisma.event.findMany({
-        where: { isActive: true },
-        select: { id: true },
-      }),
-    ]);
-
-    const activeEventIds = activeEvents.map((e) => e.id);
-
-    const [otherTicket, activeTickets] = await Promise.all([
-      !ticket
-        ? getActiveTicketInOtherEntrance(session!.user.id, event.id)
-        : Promise.resolve(null),
       prisma.queueTicket.findMany({
         where: {
-          eventId: { in: activeEventIds.length > 0 ? activeEventIds : [event.id] },
+          eventId: event.id,
           userId: { not: session!.user.id },
+          status: { in: ["WAITING", "CALLED"] },
         },
         select: {
           user: {
@@ -90,6 +79,13 @@ export async function GET(request: Request) {
         },
       }),
     ]);
+
+    const otherTicket = ticket
+      ? null
+      : await getActiveTicketInOtherEntrance(
+          session!.user.id,
+          event.entranceType
+        );
 
     let otherEntranceTicket = null;
     if (otherTicket && isEntranceType(otherTicket.event.entranceType)) {
