@@ -8,12 +8,18 @@ import {
 export const QUEUE_CACHE_KEY = "bazarna_queue_status_v1";
 
 export interface QueueCacheData {
+  pending?: boolean;
   entranceType?: EntranceType;
   entranceLabel?: string | null;
   event?: unknown;
   windowState?: "before" | "open" | "closed";
   ticket?: unknown;
   user?: { brandName: string; boothNumber: string };
+}
+
+export function hasUsableQueueCache(data: QueueCacheData | null | undefined): boolean {
+  if (!data || data.pending) return false;
+  return data.event != null || data.ticket != null;
 }
 
 export function getEntranceFromDocumentCookie(): EntranceType | null {
@@ -72,11 +78,9 @@ export function writeOptimisticEntranceCache(
   user: { brandName: string; boothNumber: string }
 ) {
   writeQueueCache({
+    pending: true,
     entranceType,
     entranceLabel: getEntranceLabel(entranceType),
-    event: null,
-    windowState: "closed",
-    ticket: null,
     user,
   });
 }

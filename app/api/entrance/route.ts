@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { ENTRANCE_COOKIE, isEntranceType } from "@/lib/entrance";
+import { isEntranceType, ENTRANCE_COOKIE } from "@/lib/entrance";
 import { parseJsonBody, withApiHandler } from "@/lib/api-error";
+import { requireAuth } from "@/lib/auth-helpers";
+import { clearEntranceCookie, setEntranceCookie } from "@/lib/entrance-cookie";
 
 export async function POST(request: Request) {
   return withApiHandler(async () => {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, error } = await requireAuth(request);
+    if (error) return error;
 
     const body = await parseJsonBody<{ entranceType?: string }>(request);
     const { entranceType } = body;
@@ -19,17 +18,12 @@ export async function POST(request: Request) {
     }
 
     await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: session!.user.id },
       data: { entranceType },
     });
 
     const response = NextResponse.json({ success: true, entranceType });
-    response.cookies.set(ENTRANCE_COOKIE, entranceType, {
-      path: "/",
-      maxAge: 60 * 60 * 24 * 8,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-    });
+    setEntranceCookie(response, entranceType);
     return response;
   }, "POST /api/entrance");
 }
@@ -37,12 +31,7 @@ export async function POST(request: Request) {
 export async function DELETE() {
   return withApiHandler(async () => {
     const response = NextResponse.json({ success: true });
-    response.cookies.set(ENTRANCE_COOKIE, "", {
-      path: "/",
-      maxAge: 0,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-    });
+    clearEntranceCookie(response);
     return response;
   }, "DELETE /api/entrance");
 }

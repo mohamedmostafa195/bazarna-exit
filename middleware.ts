@@ -8,13 +8,21 @@ function redirectTo(path: string, req: NextRequest) {
   return NextResponse.redirect(new URL(path, getRequestOrigin(req)));
 }
 
+function resolveEntrance(
+  req: NextRequest,
+  sessionEntrance?: string | null
+): boolean {
+  const fromCookie = req.cookies.get(ENTRANCE_COOKIE)?.value;
+  if (isEntranceType(fromCookie)) return true;
+  return isEntranceType(sessionEntrance);
+}
+
 export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const path = req.nextUrl.pathname;
   const role = req.auth?.user?.role?.toUpperCase();
 
-  const cookieEntrance = req.cookies.get(ENTRANCE_COOKIE)?.value;
-  const hasEntrance = isEntranceType(cookieEntrance);
+  const hasEntrance = resolveEntrance(req, req.auth?.user?.entranceType);
 
   const isAuthRoute = path === "/login" || path === "/register";
   const isSelectEntranceRoute = path === "/select-entrance";

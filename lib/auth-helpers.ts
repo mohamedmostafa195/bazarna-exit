@@ -16,7 +16,8 @@ async function getSession(_request?: Request): Promise<Session | null> {
 }
 
 export async function requireAuth(request?: Request) {
-  const session = await getSession(request);
+  void request;
+  const session = await getSession();
   if (!session?.user) {
     return {
       session: null,

@@ -16,7 +16,7 @@ import {
   getEntranceLabel,
   isEntranceType,
 } from "@/lib/entrance";
-import { readQueueCache, writeQueueCache } from "@/lib/queue-cache";
+import { hasUsableQueueCache, readQueueCache, writeQueueCache } from "@/lib/queue-cache";
 import { CheckCircle2, AlertCircle, Clock, ChevronRight, ArrowLeft } from "lucide-react";
 import { BoothNumberPicker } from "@/components/booth-number-picker";
 import { DashboardBanner } from "@/components/dashboard-banner";
@@ -66,8 +66,9 @@ interface QueueData {
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const [data, setData]   = useState<QueueData | null>(() => readQueueCache<QueueData>());
-  const [loading, setLoading]       = useState(() => readQueueCache<QueueData>() === null);
+  const initialCache = readQueueCache<QueueData>();
+  const [data, setData]   = useState<QueueData | null>(initialCache);
+  const [loading, setLoading]       = useState(() => !hasUsableQueueCache(initialCache));
   const [requesting, setRequesting] = useState(false);
   const [selectedZone,   setSelectedZone]   = useState("");
   const [selectedNumber, setSelectedNumber] = useState("");
@@ -245,7 +246,7 @@ export default function DashboardPage() {
           <p className="mb-3 text-center text-xs font-medium text-zinc-400">Updating queue…</p>
         )}
 
-        {loading && !data && (
+        {loading && !hasUsableQueueCache(data) && (
           <Card>
             <div className="animate-pulse space-y-5 py-2">
               <div className="h-4 w-40 rounded bg-zinc-200 dark:bg-zinc-800" />
@@ -262,17 +263,7 @@ export default function DashboardPage() {
         {/* ════════════════════════════════════════
             STATE: no event
         ════════════════════════════════════════ */}
-        {data && !data.event && loading && (
-          <Card>
-            <div className="animate-pulse space-y-5 py-2">
-              <div className="h-4 w-40 rounded bg-zinc-200 dark:bg-zinc-800" />
-              <div className="h-11 w-full rounded-xl bg-zinc-200 dark:bg-zinc-800" />
-              <div className="h-12 w-full rounded-xl bg-zinc-200 dark:bg-zinc-800" />
-            </div>
-          </Card>
-        )}
-
-        {data && !data.event && !loading && (
+        {data && !data.event && !loading && !data.ticket && (
           <Card>
             <EmptyState emoji="🕐" title="No active event" sub="The admin will open the queue soon." />
           </Card>

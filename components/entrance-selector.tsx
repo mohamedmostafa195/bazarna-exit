@@ -19,34 +19,58 @@ import { DashboardBanner } from "@/components/dashboard-banner";
 
 export function EntranceSelector() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
   const [loading, setLoading] = useState<EntranceType | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function selectEntrance(entranceType: EntranceType) {
     if (loading) return;
     setLoading(entranceType);
+    setError(null);
 
     const isAdmin = session?.user?.role === "ADMIN";
     const target = isAdmin ? "/admin/dashboard" : "/dashboard";
 
-    const { ok, data } = await fetchApi<{ error?: string }>("/api/entrance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ entranceType }),
-    });
+    try {
+      const { ok, data, status } = await fetchApi<{ error?: string }>(
+        "/api/entrance",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ entranceType }),
+        }
+      );
 
-    if (!ok) {
-      toast.error(data.error ?? "Could not save your selection. Please try again.");
+      if (!ok) {
+        const message =
+          data.error ??
+          (status === 401
+            ? "Your session expired. Please sign in again."
+            : status === 503
+              ? "Database unavailable. Try again in a moment."
+              : "Could not save your selection. Please try again.");
+        setError(message);
+        toast.error(message);
+        setLoading(null);
+        return;
+      }
+
+      writeOptimisticEntranceCache(entranceType, {
+        brandName: session?.user?.brandName ?? "Brand",
+        boothNumber: session?.user?.boothNumber ?? "—",
+      });
+
+      // Keep JWT in sync so Vercel middleware can allow /dashboard
+      await update({ entranceType });
+
+      window.location.assign(target);
+    } catch {
+      const message = "Something went wrong. Please try again.";
+      setError(message);
+      toast.error(message);
       setLoading(null);
-      return;
     }
-
-    writeOptimisticEntranceCache(entranceType, {
-      brandName: session?.user?.brandName ?? "Brand",
-      boothNumber: session?.user?.boothNumber ?? "—",
-    });
-    router.replace(target);
   }
 
   async function handleLogout() {
@@ -105,6 +129,12 @@ export function EntranceSelector() {
           <p className="mt-2 max-w-md text-white/90 sm:text-zinc-500 dark:sm:text-zinc-400">
             Bazarna has two separate exits. Each has its own queue numbers.
           </p>
+
+          {error && (
+            <p className="mt-3 w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+              {error}
+            </p>
+          )}
 
           <div className="mt-4 w-full grid gap-4 sm:mt-10 sm:grid-cols-2 sm:gap-6">
           {options.map((type) => (
