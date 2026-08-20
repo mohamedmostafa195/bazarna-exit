@@ -8,8 +8,9 @@ import {
   type EntranceType,
 } from "@/lib/entrance";
 
-/** Fallback / select-entrance banner image. */
-export const DASHBOARD_BANNER_IMAGE = "/image/DashboardBanner.jpg";
+/** Select-entrance / fallback banner image. */
+export const DASHBOARD_BANNER_IMAGE =
+  "https://pub-c1e2cd0f5a51401993056e38c1816f26.r2.dev/pexels-alyona-nagel-1468385055-38937437.jpg";
 
 export const BAZARNA_BANNER_VIDEO =
   "https://pub-c1e2cd0f5a51401993056e38c1816f26.r2.dev/Every%20color%2C%20every%20zipper%2C%20every%20detail%20is%20part%20of%20the%20story.Get%20a%20first%20look%20at%20the%20categories%20.mp4";
