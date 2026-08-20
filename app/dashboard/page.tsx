@@ -186,17 +186,31 @@ export default function DashboardPage() {
     });
   }, [lastUpdate]);
 
+  const [cookieEntrance, setCookieEntrance] = useState<EntranceType | null>(null);
+
+  useEffect(() => {
+    const match = document.cookie.match(/(?:^|;\s*)bazarna_entrance=([^;]+)/);
+    const value = match?.[1] ? decodeURIComponent(match[1]) : null;
+    if (isEntranceType(value)) setCookieEntrance(value);
+  }, []);
+
   /* derived ------------------------------------------------ */
   const openTime  = data?.event ? new Date(data.event.queueOpenTime)  : null;
   const countdown = useCountdown(data?.windowState === "before" ? openTime : null);
   const brandName = data?.user?.brandName ?? session?.user?.brandName ?? "Brand";
 
   const currentEntrance: EntranceType | null =
-    data?.entranceType && isEntranceType(data.entranceType)                         ? data.entranceType
-    : session?.user?.entranceType && isEntranceType(session.user.entranceType)      ? session.user.entranceType
-    : data?.entranceLabel === "Byouth"                                               ? "BYOUTH"
-    : data?.entranceLabel === "Bazarna"                                              ? "BAZARNA"
-    : null;
+    data?.entranceType && isEntranceType(data.entranceType)
+      ? data.entranceType
+      : session?.user?.entranceType && isEntranceType(session.user.entranceType)
+        ? session.user.entranceType
+        : cookieEntrance
+          ? cookieEntrance
+          : data?.entranceLabel === "Byouth"
+            ? "BYOUTH"
+            : data?.entranceLabel === "Bazarna"
+              ? "BAZARNA"
+              : null;
 
   const eventZones = resolveEventZones(data?.event?.zones, currentEntrance ?? data?.entranceType);
 
