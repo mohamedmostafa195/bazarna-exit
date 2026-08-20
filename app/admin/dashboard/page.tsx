@@ -5,7 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useSocket } from "@/hooks/use-socket";
-import { Users, CheckCircle, Clock, ListOrdered } from "lucide-react";
+import { Users, CheckCircle, Clock } from "lucide-react";
 import Link from "next/link";
 import { EntranceTabs } from "@/components/entrance-tabs";
 import { getEntranceLabel, type EntranceType } from "@/lib/entrance";
@@ -128,20 +128,7 @@ export default function AdminDashboardPage() {
           className="mb-6 max-w-md"
         />
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-orange-100 p-2 dark:bg-orange-900/30">
-                <ListOrdered className="h-5 w-5 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-sm text-zinc-500">Now Serving</p>
-                <p className="text-2xl font-bold">
-                  {stats?.currentServing ? `#${stats.currentServing}` : "—"}
-                </p>
-              </div>
-            </div>
-          </Card>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Card>
             <div className="flex items-center gap-3">
               <div className="rounded-lg bg-amber-100 p-2 dark:bg-amber-900/30">
