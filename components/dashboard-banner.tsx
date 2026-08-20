@@ -75,40 +75,54 @@ export function DashboardBanner({
 
   return (
     <div className="relative">
+      {/*
+        Mobile: fixed-height media at the top.
+        Web + video: media fills the whole banner block (sized by children),
+        so height ends at the bottom of the exit-number content.
+      */}
       <div
         aria-hidden
         className={
           video
-            ? "pointer-events-none absolute inset-x-0 top-0 -mx-4 h-[36rem] overflow-hidden sm:left-1/2 sm:right-auto sm:mx-0 sm:h-[28rem] sm:w-screen sm:-translate-x-1/2 sm:rounded-none"
+            ? "pointer-events-none absolute inset-x-0 top-0 -mx-4 h-[36rem] overflow-hidden sm:inset-0 sm:mx-0 sm:h-auto sm:w-auto sm:overflow-hidden"
             : "pointer-events-none absolute inset-x-0 top-0 -mx-4 h-[28rem] overflow-hidden sm:mx-0 sm:h-80 sm:rounded-b-[24px]"
         }
       >
-        {video ? (
-          <video
-            key={video.src}
-            ref={videoRef}
-            className="absolute inset-x-0 top-0 h-[calc(100%+125px)] w-full -translate-y-[125px] object-cover object-center"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            poster={video.poster}
-          >
-            <source src={video.src} type="video/mp4" />
-          </video>
-        ) : (
-          <Image
-            src={DASHBOARD_BANNER_IMAGE}
-            alt=""
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover object-top sm:object-center"
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-b from-transparent via-zinc-50/50 to-zinc-50 dark:via-zinc-950/50 dark:to-zinc-950 sm:h-40" />
+        {/* Full-bleed wrapper on web so video spans viewport width */}
+        <div
+          className={
+            video
+              ? "absolute inset-0 sm:left-1/2 sm:w-screen sm:-translate-x-1/2"
+              : "absolute inset-0"
+          }
+        >
+          {video ? (
+            <video
+              key={video.src}
+              ref={videoRef}
+              className="absolute inset-x-0 top-0 h-[calc(100%+125px)] w-full -translate-y-[125px] object-cover object-center sm:inset-0 sm:h-full sm:translate-y-0"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+              poster={video.poster}
+            >
+              <source src={video.src} type="video/mp4" />
+            </video>
+          ) : (
+            <Image
+              src={DASHBOARD_BANNER_IMAGE}
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover object-top sm:object-center"
+            />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-b from-transparent via-zinc-50/50 to-zinc-50 dark:via-zinc-950/50 dark:to-zinc-950 sm:h-24 sm:via-zinc-50/25 dark:sm:via-zinc-950/25" />
+        </div>
       </div>
 
       {overlay}

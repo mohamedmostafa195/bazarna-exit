@@ -259,16 +259,15 @@ export default function DashboardPage() {
       <div
         className={
           currentEntrance
-            ? "mx-auto w-full max-w-4xl px-4 pb-16 pt-[248px] sm:px-20 sm:pt-72"
-            : "mx-auto w-full max-w-4xl px-4 pb-16 pt-[148px] sm:px-20 sm:pt-48"
+            ? data?.ticket
+              ? "mx-auto w-full max-w-4xl px-4 pb-0 pt-[248px] sm:px-20 sm:pt-72"
+              : "mx-auto w-full max-w-4xl px-4 pb-16 pt-[248px] sm:px-20 sm:pb-8 sm:pt-72"
+            : "mx-auto w-full max-w-4xl px-4 pb-16 pt-[148px] sm:px-20 sm:pb-8 sm:pt-48"
         }
         style={{ opacity: 1, transform: "none" }}
       >
         <div className="mb-6 hidden sm:block">
-          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-            Your exit number for today
-          </p>
-          <h2 className="mt-1 text-[28px] font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100">
+          <h2 className="text-[28px] font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100">
             Exit Queue
           </h2>
         </div>
@@ -491,7 +490,7 @@ export default function DashboardPage() {
             )}
 
             {/* ── TICKET CARD ── */}
-            <div className="overflow-hidden rounded-3xl border border-zinc-200/80 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="overflow-hidden rounded-3xl border-2 border-white/50 bg-white/55 shadow-lg backdrop-blur-xl dark:border-white/50 dark:bg-zinc-900/55 sm:mb-0">
               {/* Brand accent bar */}
               <div className={`h-[5px] w-full ${currentEntrance === "BYOUTH" ? "bg-amber-400" : "bg-orange-500"}`} />
 
@@ -538,16 +537,20 @@ export default function DashboardPage() {
                 </p>
               </div>
             </div>
-
-            {/* ── QR CARD ── */}
-            <div className="rounded-3xl border border-zinc-200/80 bg-white p-5 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-              <p className="mb-4 text-[10px] font-extrabold uppercase tracking-[.2em] text-zinc-400">Show at exit gate</p>
-              <QRDisplay value={`${origin}/ticket/${data.ticket.qrToken}`} />
-            </div>
           </div>
         )}
       </div>
       </DashboardBanner>
+
+      {/* QR stays below the video section on web */}
+      {data?.ticket && (
+        <div className="mx-auto w-full max-w-4xl px-4 pb-16 sm:px-20">
+          <div className="mt-3 rounded-3xl border-2 border-white/50 bg-white/55 p-5 text-center shadow-lg backdrop-blur-xl dark:border-white/50 dark:bg-zinc-900/55">
+            <p className="mb-4 text-[10px] font-extrabold uppercase tracking-[.2em] text-zinc-400">Show at exit gate</p>
+            <QRDisplay value={`${origin}/ticket/${data.ticket.qrToken}`} />
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
