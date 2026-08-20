@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-helpers";
 import { getQueueWindowState } from "@/lib/utils";
-import { resolveEntranceType } from "@/lib/entrance-server";
+import { getEntranceFromRequest } from "@/lib/entrance-server";
 import { prisma } from "@/lib/prisma";
 import { getEntranceLabel, isEntranceType, type EntranceType } from "@/lib/entrance";
 import { withApiHandler } from "@/lib/api-error";
@@ -12,12 +12,24 @@ import {
 } from "@/lib/event-lifecycle";
 import { normalizeBoothCode } from "@/lib/booth-validation";
 
+function resolveEntranceFromRequest(
+  request: Request,
+  sessionEntrance?: string | null
+): EntranceType | null {
+  const fromRequest = getEntranceFromRequest(request);
+  if (fromRequest) return fromRequest;
+  if (sessionEntrance && isEntranceType(sessionEntrance)) {
+    return sessionEntrance;
+  }
+  return null;
+}
+
 export async function GET(request: Request) {
   return withApiHandler(async () => {
     const { session, error } = await requireAuth(request);
     if (error) return error;
 
-    const entranceType = await resolveEntranceType(
+    const entranceType = resolveEntranceFromRequest(
       request,
       session!.user.entranceType
     );
@@ -57,29 +69,59 @@ export async function GET(request: Request) {
     const eventDayPassed = isEventDayPassed(event.eventDate);
     const queueEndedToday = windowState === "closed" && !eventDayPassed;
 
-    // Run all three queries in parallel — single network round-trip to the DB.
-    const [ticket, activeTickets, otherTicketRaw] = await Promise.all([
-      prisma.queueTicket.findUnique({
-        where: {
-          userId_eventId: {
-            userId: session!.user.id,
-            eventId: event.id,
-          },
-        },
-      }),
-      prisma.queueTicket.findMany({
-        where: {
+    const ticket = await prisma.queueTicket.findUnique({
+      where: {
+        userId_eventId: {
+          userId: session!.user.id,
           eventId: event.id,
-          userId: { not: session!.user.id },
-          status: { in: ["WAITING", "CALLED"] },
         },
-        select: { user: { select: { boothNumber: true } } },
-      }),
-      // Look for a ticket in the other entrance in parallel.
-      getActiveTicketInOtherEntrance(session!.user.id, event.entranceType),
-    ]);
+      },
+    });
 
-    const otherTicket = ticket ? null : otherTicketRaw;
+    // Already has a ticket — skip booth + other-entrance lookups.
+    if (ticket) {
+      return NextResponse.json({
+        event: {
+          id: event.id,
+          eventName: event.eventName,
+          entranceType: event.entranceType,
+          queueOpenTime: event.queueOpenTime,
+          queueCloseTime: event.queueCloseTime,
+          eventDate: event.eventDate,
+          currentServingNumber: event.currentServingNumber,
+          zones: event.zones ?? [],
+        },
+        windowState,
+        ticket,
+        otherEntranceTicket: null,
+        occupiedBooths: [],
+        entranceType,
+        entranceLabel: entranceType ? getEntranceLabel(entranceType) : null,
+        eventDayPassed,
+        queueEndedToday,
+        user,
+      });
+    }
+
+    const needsOccupiedBooths =
+      windowState === "open" && !eventDayPassed;
+
+    const [activeTickets, otherTicket] = await Promise.all([
+      needsOccupiedBooths
+        ? prisma.queueTicket.findMany({
+            where: {
+              eventId: event.id,
+              userId: { not: session!.user.id },
+              status: { in: ["WAITING", "CALLED"] },
+            },
+            select: { user: { select: { boothNumber: true } } },
+          })
+        : Promise.resolve([]),
+      getActiveTicketInOtherEntrance(
+        session!.user.id,
+        event.entranceType
+      ),
+    ]);
 
     let otherEntranceTicket = null;
     if (otherTicket && isEntranceType(otherTicket.event.entranceType)) {
@@ -114,7 +156,7 @@ export async function GET(request: Request) {
         zones: event.zones ?? [],
       },
       windowState,
-      ticket,
+      ticket: null,
       otherEntranceTicket,
       occupiedBooths,
       entranceType,

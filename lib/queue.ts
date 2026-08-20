@@ -118,19 +118,14 @@ export async function getActiveTicketInOtherEntrance(
   userId: string,
   currentEntranceType: string
 ) {
-  const otherEvent = await prisma.event.findFirst({
-    where: {
-      isActive: true,
-      entranceType: { not: currentEntranceType },
-    },
-  });
-  if (!otherEvent) return null;
-
   return prisma.queueTicket.findFirst({
     where: {
       userId,
-      eventId: otherEvent.id,
       status: { in: ["WAITING", "CALLED"] },
+      event: {
+        isActive: true,
+        entranceType: { not: currentEntranceType },
+      },
     },
     include: { event: true },
   });

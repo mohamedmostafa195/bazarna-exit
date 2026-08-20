@@ -12,7 +12,7 @@ import {
   getEntranceImage,
   getEntranceLabel,
 } from "@/lib/entrance";
-import { writeOptimisticEntranceCache } from "@/lib/queue-cache";
+import { writeOptimisticEntranceCache, writeQueueCache } from "@/lib/queue-cache";
 import { cn } from "@/lib/utils";
 import { LogOut } from "lucide-react";
 import { DashboardBanner } from "@/components/dashboard-banner";
@@ -61,8 +61,16 @@ export function EntranceSelector() {
         boothNumber: session?.user?.boothNumber ?? "—",
       });
 
-      // Cookie is already set by the API response; sync JWT in background.
       void update({ entranceType });
+
+      // Warm queue cache before navigation so dashboard opens instantly.
+      if (target === "/dashboard") {
+        const { ok, data: queueData } = await fetchApi<Record<string, unknown>>(
+          "/api/queue/status"
+        );
+        if (ok) writeQueueCache(queueData);
+      }
+
       window.location.assign(target);
     } catch {
       const message = "Something went wrong. Please try again.";
