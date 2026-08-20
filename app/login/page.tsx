@@ -47,7 +47,9 @@ export default function LoginPage() {
             alt="Bazarna"
             width={64}
             height={64}
+            priority
             className="mx-auto rounded-xl"
+            style={{ width: 64, height: 64 }}
           />
           <h1 className="mt-4 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
             Bazarna Exit Queue

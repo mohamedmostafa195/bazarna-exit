@@ -20,9 +20,10 @@ function getSocket(): Socket {
     socket = io({
       path: "/api/socketio",
       transports: ["websocket", "polling"],
+      upgrade: true,
       autoConnect: true,
       reconnection: false,
-      timeout: 3000,
+      timeout: 2500,
     });
   }
   return socket;

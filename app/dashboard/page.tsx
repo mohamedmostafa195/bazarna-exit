@@ -7,17 +7,16 @@ import { AppShell } from "@/components/app-shell";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { QRDisplay } from "@/components/qr-display";
 import { useSocket, useCountdown } from "@/hooks/use-socket";
-import { formatQueueWindow, formatTime } from "@/lib/utils";
+import { formatTime } from "@/lib/utils";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/fetch-api";
 import {
   type EntranceType,
   getEntranceImage,
-  getEntranceLabel,
   isEntranceType,
 } from "@/lib/entrance";
 import { hasUsableQueueCache, readQueueCache, writeQueueCache } from "@/lib/queue-cache";
-import { CheckCircle2, AlertCircle, Clock, ChevronRight, ArrowLeft } from "lucide-react";
+import { CheckCircle2, AlertCircle, Clock, ArrowLeft } from "lucide-react";
 import { BoothNumberPicker } from "@/components/booth-number-picker";
 import { DashboardBanner } from "@/components/dashboard-banner";
 import {
@@ -178,7 +177,6 @@ export default function DashboardPage() {
 
   /* derived ------------------------------------------------ */
   const openTime  = data?.event ? new Date(data.event.queueOpenTime)  : null;
-  const closeTime = data?.event ? new Date(data.event.queueCloseTime) : null;
   const countdown = useCountdown(data?.windowState === "before" ? openTime : null);
   const brandName = data?.user?.brandName ?? session?.user?.brandName ?? "Brand";
 
@@ -226,7 +224,7 @@ export default function DashboardPage() {
             type="button"
             onClick={switchEntrance}
             aria-label="Back to entrance selection"
-            className="absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-white/55 text-zinc-900 shadow-sm backdrop-blur-md transition-colors hover:text-orange-500 dark:border-white/10 dark:bg-zinc-900/55 dark:text-zinc-100 sm:hidden"
+            className="absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/90 text-zinc-900 shadow-sm hover:text-orange-500 dark:border-white/10 dark:bg-zinc-900/90 dark:text-zinc-100 sm:hidden"
           >
             <ArrowLeft className="h-5 w-5 shrink-0" />
           </button>
@@ -242,8 +240,8 @@ export default function DashboardPage() {
           </h2>
         </div>
 
-        {loading && (
-          <p className="mb-3 text-center text-xs font-medium text-zinc-400">Updating queue…</p>
+        {loading && !hasUsableQueueCache(data) && (
+          <p className="mb-3 text-center text-xs font-medium text-zinc-400">Loading queue…</p>
         )}
 
         {loading && !hasUsableQueueCache(data) && (
@@ -419,16 +417,12 @@ export default function DashboardPage() {
                     type="button"
                     disabled={!valid || requesting}
                     onClick={handleRequestNumber}
-                    className="relative mt-4 w-full overflow-hidden rounded-xl py-3.5 text-sm font-extrabold text-white outline-none transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-                    style={{ background: "linear-gradient(135deg,#f97316 0%,#c2410c 100%)" }}
+                    className="relative mt-4 w-full overflow-hidden rounded-xl bg-orange-500 py-3.5 text-sm font-extrabold text-white outline-none active:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {requesting
                       ? <span className="flex items-center justify-center gap-2"><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> Getting your number…</span>
                       : "Get My Exit Number"
                     }
-                    {valid && !requesting && (
-                      <span className="pointer-events-none absolute inset-0 -translate-x-full animate-[shine_2.5s_ease_infinite] bg-gradient-to-r from-transparent via-white/15 to-transparent" style={{transform:"skewX(-12deg)"}} />
-                    )}
                   </button>
                 </div>
               );
@@ -449,7 +443,7 @@ export default function DashboardPage() {
 
             {/* Queue ended today */}
             {data.queueEndedToday && data.ticket.status !== "COMPLETED" && (
-              <div className="rounded-2xl border border-orange-200/50 bg-orange-50/80 px-4 py-3 dark:border-orange-900/40 dark:bg-orange-950/20" style={{animation:"fadeUp .3s ease both"}}>
+              <div className="rounded-2xl border border-orange-200/50 bg-orange-50/80 px-4 py-3 dark:border-orange-900/40 dark:bg-orange-950/20">
                 <p className="text-sm font-bold text-orange-700 dark:text-orange-300">Queue closed for today</p>
                 <p className="text-xs text-orange-500/80">Fresh number tomorrow. Keep this one.</p>
               </div>
@@ -457,19 +451,16 @@ export default function DashboardPage() {
 
             {/* Completed */}
             {data.ticket.status === "COMPLETED" && (
-              <div className="rounded-2xl border border-emerald-200/50 bg-emerald-50/80 px-4 py-3 dark:border-emerald-900/40 dark:bg-emerald-950/20" style={{animation:"fadeUp .3s ease both"}}>
+              <div className="rounded-2xl border border-emerald-200/50 bg-emerald-50/80 px-4 py-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
                 <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">Exit complete ✓</p>
                 <p className="text-xs text-emerald-500/80">See you at the next event!</p>
               </div>
             )}
 
             {/* ── TICKET CARD ── */}
-            <div
-              className="overflow-hidden rounded-3xl border border-zinc-200/80 bg-white shadow-md dark:border-zinc-800 dark:bg-zinc-900"
-              style={{animation:"fadeUp .35s ease both"}}
-            >
+            <div className="overflow-hidden rounded-3xl border border-zinc-200/80 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               {/* Brand accent bar */}
-              <div className={`h-[5px] w-full ${currentEntrance === "BYOUTH" ? "bg-gradient-to-r from-amber-400 via-orange-400 to-orange-500" : "bg-gradient-to-r from-orange-500 via-orange-600 to-red-500"}`} />
+              <div className={`h-[5px] w-full ${currentEntrance === "BYOUTH" ? "bg-amber-400" : "bg-orange-500"}`} />
 
               {/* Top row */}
               <div className="flex items-center justify-between px-5 pt-4">
@@ -502,7 +493,7 @@ export default function DashboardPage() {
                 <p className="text-[10px] font-extrabold uppercase tracking-[.22em] text-zinc-400">Your exit number</p>
                 <p
                   className="font-black leading-none text-orange-500"
-                  style={{ fontSize:"clamp(5rem,22vw,7rem)", animation:"popIn .55s cubic-bezier(.34,1.56,.64,1) both" }}
+                  style={{ fontSize: "clamp(5rem,22vw,7rem)" }}
                 >
                   #{data.ticket.queueNumber}
                 </p>
@@ -516,22 +507,13 @@ export default function DashboardPage() {
             </div>
 
             {/* ── QR CARD ── */}
-            <div
-              className="rounded-3xl border border-zinc-200/80 bg-white p-5 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
-              style={{animation:"fadeUp .45s ease both"}}
-            >
+            <div className="rounded-3xl border border-zinc-200/80 bg-white p-5 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               <p className="mb-4 text-[10px] font-extrabold uppercase tracking-[.2em] text-zinc-400">Show at exit gate</p>
               <QRDisplay value={`${typeof window !== "undefined" ? window.location.origin : ""}/ticket/${data.ticket.qrToken}`} />
             </div>
           </div>
         )}
       </div>
-
-      <style>{`
-        @keyframes fadeUp  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
-        @keyframes popIn   { from{opacity:0;transform:scale(.55)} to{opacity:1;transform:scale(1)} }
-        @keyframes shine   { 0%{transform:skewX(-12deg) translateX(-100%)} 100%{transform:skewX(-12deg) translateX(400%)} }
-      `}</style>
       </DashboardBanner>
     </AppShell>
   );
@@ -542,8 +524,7 @@ export default function DashboardPage() {
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <div
-      className={`rounded-3xl border border-zinc-200/80 bg-white p-6 shadow-md dark:border-zinc-800 dark:bg-zinc-900 sm:p-10 ${className}`}
-      style={{ animation: "fadeUp .35s ease both" }}
+      className={`rounded-3xl border border-zinc-200/80 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-10 ${className}`}
     >
       {children}
     </div>
@@ -559,18 +540,6 @@ function EmptyState({ emoji, title, sub }: { emoji: string; title: string; sub: 
         <p className="mt-0.5 text-sm text-zinc-400">{sub}</p>
       </div>
     </div>
-  );
-}
-
-function ActionButton({ children, onClick, className = "" }: { children: React.ReactNode; onClick: () => void; className?: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex w-full items-center justify-center gap-1.5 rounded-xl bg-orange-500 py-2.5 text-sm font-extrabold text-white transition hover:bg-orange-600 active:scale-[.98] ${className}`}
-    >
-      {children}
-    </button>
   );
 }
 
