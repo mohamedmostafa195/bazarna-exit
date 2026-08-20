@@ -260,8 +260,8 @@ export default function DashboardPage() {
         className={
           currentEntrance
             ? data?.ticket
-              ? "mx-auto w-full max-w-4xl px-4 pb-0 pt-[248px] sm:px-20 sm:pt-72"
-              : "mx-auto w-full max-w-4xl px-4 pb-16 pt-[248px] sm:px-20 sm:pb-8 sm:pt-72"
+              ? "mx-auto w-full max-w-4xl px-4 pb-0 pt-[300px] sm:px-20 sm:pt-72"
+              : "mx-auto w-full max-w-4xl px-4 pb-16 pt-[300px] sm:px-20 sm:pb-8 sm:pt-72"
             : "mx-auto w-full max-w-4xl px-4 pb-16 pt-[148px] sm:px-20 sm:pb-8 sm:pt-48"
         }
         style={{ opacity: 1, transform: "none" }}
