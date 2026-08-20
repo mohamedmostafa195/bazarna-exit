@@ -230,6 +230,7 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <DashboardBanner
+        entranceType={currentEntrance}
         overlay={
           <button
             type="button"
@@ -242,7 +243,11 @@ export default function DashboardPage() {
         }
       >
       <div
-        className="mx-auto w-full max-w-4xl px-4 pb-16 pt-[216px] sm:px-20 sm:pt-48"
+        className={
+          currentEntrance
+            ? "mx-auto w-full max-w-4xl px-4 pb-16 pt-[248px] sm:px-20 sm:pt-72"
+            : "mx-auto w-full max-w-4xl px-4 pb-16 pt-[148px] sm:px-20 sm:pt-48"
+        }
         style={{ opacity: 1, transform: "none" }}
       >
         <div className="mb-6 hidden sm:block">
@@ -316,7 +321,7 @@ export default function DashboardPage() {
                   await fetchApi("/api/entrance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ entranceType: data.otherEntranceTicket!.entranceType }) });
                   window.location.href = "/dashboard";
                 }}
-                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 py-3.5 text-sm font-extrabold text-white transition hover:bg-orange-600 active:scale-[.98]"
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 py-3.5 text-sm font-normal text-white transition hover:bg-orange-600 active:scale-[.98]"
               >
                 Go to {data.otherEntranceTicket.entranceLabel} Ticket (#{data.otherEntranceTicket.queueNumber}) →
               </button>
@@ -347,7 +352,7 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 )}
-                <button disabled className="w-full cursor-not-allowed rounded-xl bg-zinc-100 py-3 text-sm font-bold text-zinc-400 dark:bg-zinc-800 dark:text-zinc-600">
+                <button disabled className="w-full cursor-not-allowed rounded-xl bg-zinc-100 py-3 text-sm font-normal text-zinc-400 dark:bg-zinc-800 dark:text-zinc-600">
                   Not open yet
                 </button>
               </div>
@@ -431,7 +436,7 @@ export default function DashboardPage() {
                     type="button"
                     disabled={!valid || requesting}
                     onClick={handleRequestNumber}
-                    className="relative mt-4 w-full overflow-hidden rounded-xl bg-orange-500 py-3.5 text-sm font-extrabold text-white outline-none active:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="relative mt-4 w-full overflow-hidden rounded-xl bg-orange-500 py-3.5 text-sm font-normal text-white outline-none active:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {requesting
                       ? <span className="flex items-center justify-center gap-2"><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> Getting your number…</span>
@@ -538,7 +543,7 @@ export default function DashboardPage() {
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <div
-      className={`rounded-3xl border border-zinc-200/80 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-10 ${className}`}
+      className={`rounded-3xl border-2 border-white/50 bg-white/55 p-6 shadow-lg backdrop-blur-xl dark:border-white/50 dark:bg-zinc-900/55 sm:p-10 ${className}`}
     >
       {children}
     </div>
