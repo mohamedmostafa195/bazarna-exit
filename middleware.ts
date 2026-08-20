@@ -41,6 +41,10 @@ export default auth((req) => {
     if (!isLoggedIn) {
       return redirectTo("/login", req);
     }
+    // Admins switch entrance inside the dashboard — skip this page
+    if (role === "ADMIN") {
+      return redirectTo("/admin/dashboard", req);
+    }
     return NextResponse.next();
   }
 
@@ -48,7 +52,8 @@ export default auth((req) => {
     if (!isLoggedIn) {
       return redirectTo("/login", req);
     }
-    if (!hasEntrance) {
+    // Brands must pick an entrance; admins use tabs on the dashboard
+    if (!hasEntrance && role !== "ADMIN") {
       return redirectTo("/select-entrance", req);
     }
   }

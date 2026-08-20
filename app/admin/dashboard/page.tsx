@@ -116,9 +116,6 @@ export default function AdminDashboardPage() {
             <Link href="/admin/queue">
               <Button variant="outline">Manage Queue</Button>
             </Link>
-            <Link href={`/display-screen?entrance=${entrance}`} target="_blank">
-              <Button variant="secondary">Open Display</Button>
-            </Link>
           </div>
         </div>
 

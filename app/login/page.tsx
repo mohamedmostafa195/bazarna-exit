@@ -33,8 +33,21 @@ export default function LoginPage() {
     }
 
     toast.success("Welcome back!");
+
+    const sessionRes = await fetch("/api/auth/session");
+    const session = (await sessionRes.json().catch(() => null)) as {
+      user?: { role?: string };
+    } | null;
+    const role = session?.user?.role?.toUpperCase();
+
+    if (role === "ADMIN") {
+      router.replace("/admin/dashboard");
+      router.refresh();
+      return;
+    }
+
     await fetchApi("/api/entrance", { method: "DELETE" });
-    router.replace("/");
+    router.replace("/select-entrance");
     router.refresh();
   }
 

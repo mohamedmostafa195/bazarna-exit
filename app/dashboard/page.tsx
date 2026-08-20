@@ -246,7 +246,10 @@ export default function DashboardPage() {
         style={{ opacity: 1, transform: "none" }}
       >
         <div className="mb-6 hidden sm:block">
-          <h2 className="text-[24px] font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100">
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            Your exit number for today
+          </p>
+          <h2 className="mt-1 text-[28px] font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100">
             Exit Queue
           </h2>
         </div>

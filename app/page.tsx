@@ -9,14 +9,14 @@ export default async function Home() {
     redirect("/login");
   }
 
+  if (session.user.role === "ADMIN") {
+    redirect("/admin/dashboard");
+  }
+
   const entrance = await getEntranceFromCookies();
 
   if (!entrance) {
     redirect("/select-entrance");
-  }
-
-  if (session.user.role === "ADMIN") {
-    redirect("/admin/dashboard");
   }
 
   redirect("/dashboard");

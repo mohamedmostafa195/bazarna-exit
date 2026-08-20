@@ -9,5 +9,9 @@ export default async function SelectEntrancePage() {
     redirect("/login");
   }
 
+  if (session.user.role === "ADMIN") {
+    redirect("/admin/dashboard");
+  }
+
   return <EntranceSelector />;
 }

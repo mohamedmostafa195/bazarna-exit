@@ -8,7 +8,8 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/fetch-api";
 import {
-  ArrowLeft,
+  ChevronRight,
+  Home,
   LayoutDashboard,
   Settings,
   ScanLine,
@@ -58,19 +59,19 @@ export function Navbar() {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         {isBrandDashboard ? (
-          <div>
-            <button
-              type="button"
-              onClick={async () => {
-                await fetchApi("/api/entrance", { method: "DELETE" });
-                window.location.href = "/select-entrance";
-              }}
-              className="hidden"
+          <div className="flex items-center gap-4">
+            <Image
+              src="/image/LogoBazarna.jpg"
+              alt="Bazarna"
+              width={36}
+              height={36}
+              className="rounded-lg"
+              style={{ width: 36, height: 36 }}
+            />
+            <nav
+              aria-label="Breadcrumb"
+              className="hidden items-center gap-1 sm:flex"
             >
-              <ArrowLeft className="h-5 w-5 shrink-0" />
-              <span>Exit Queue</span>
-            </button>
-            <div className="hidden items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400 sm:flex">
               <Link
                 href="/select-entrance"
                 onClick={async (e) => {
@@ -78,13 +79,16 @@ export function Navbar() {
                   await fetchApi("/api/entrance", { method: "DELETE" });
                   window.location.href = "/select-entrance";
                 }}
-                className="transition-colors hover:text-orange-500"
+                className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-orange-600 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-orange-400"
               >
+                <Home className="h-3.5 w-3.5" />
                 Home
               </Link>
-              <span>/</span>
-              <span className="font-medium text-zinc-900 dark:text-zinc-100">Exit Queue</span>
-            </div>
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-zinc-300 dark:text-zinc-600" />
+              <span className="rounded-lg bg-orange-50 px-2.5 py-1.5 text-sm font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-300">
+                Exit Queue
+              </span>
+            </nav>
           </div>
         ) : (
           <Link
