@@ -24,8 +24,10 @@
 .DS_Store
 *.pem
 
-# large local banner assets (keep out of git)
+# large local banner assets (keep out of git) — allow dashboard entrance videos
 public/image/*.mp4
+!public/image/BazarnaBanner.mp4
+!public/image/ByouthBanner.mp4
 
 # debug
 npm-debug.log*
