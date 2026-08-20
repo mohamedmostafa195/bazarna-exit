@@ -6,7 +6,8 @@
  *   2. Create Bazarna + Byouth events with zones (same queue window)
  *   3. Assign unique booth numbers per zone limits
  *   4. Fire all "Get My Exit Number" requests at the same time
- *   5. Verify queue order + separate entrances
+ *   5. Scan all QR codes for exit checkout at the same time
+ *   6. Verify queue order + separate entrances + completed scans
  *
  * Usage:
  *   npm run test:queue
@@ -21,7 +22,9 @@ import { registerClients } from "./load-test/register-clients";
 import { createLoadTestEvents } from "./load-test/create-events";
 import { assignBoothsToClients } from "./load-test/assign-booths";
 import { fireAllEntrancesAtOnce } from "./load-test/run-queue";
+import { fireAllScansAtOnce } from "./load-test/run-scan";
 import { analyzeResults, printReport } from "./load-test/analyze-results";
+import { analyzeScanResults, printScanReport } from "./load-test/analyze-scan";
 import { phase, info, timing, warn } from "./load-test/logger";
 
 async function main() {
@@ -89,12 +92,22 @@ async function main() {
   );
   timing("Queue requests", tQueue);
 
-  phase("Results", "report");
-  const { bazarna, byouth, passed } = analyzeResults(
-    results,
-    config.perEntrance
+  phase(
+    `Concurrent exit scan — ${config.totalClients} QR checkouts (admin scanner)`,
+    "scan"
   );
-  printReport(Date.now() - tQueue, bazarna, byouth, passed);
+  const tScan = Date.now();
+  const scanResults = await fireAllScansAtOnce(results, config.concurrency);
+  timing("Exit scans", tScan);
+
+  phase("Results", "report");
+  const queueAnalysis = analyzeResults(results, config.perEntrance);
+  printReport(Date.now() - tQueue, queueAnalysis.bazarna, queueAnalysis.byouth, queueAnalysis.passed);
+
+  const scanAnalysis = analyzeScanResults(scanResults, config.perEntrance);
+  printScanReport(Date.now() - tScan, scanAnalysis.bazarna, scanAnalysis.byouth, scanAnalysis.passed);
+
+  const passed = queueAnalysis.passed && scanAnalysis.passed;
 
   if (!config.keepData) {
     phase("Cleanup test data", "cleanup");

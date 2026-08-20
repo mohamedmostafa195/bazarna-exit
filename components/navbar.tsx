@@ -11,7 +11,6 @@ import {
   ArrowLeft,
   LayoutDashboard,
   Settings,
-  Monitor,
   ScanLine,
   ListOrdered,
   LogOut,
@@ -25,7 +24,6 @@ const adminLinks = [
   { href: "/admin/actions", label: "Activity", icon: Activity },
   { href: "/admin/accounts", label: "Accounts", icon: UserCog },
   { href: "/admin/scanner", label: "Scanner", icon: ScanLine },
-  { href: "/display-screen", label: "Display", icon: Monitor },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

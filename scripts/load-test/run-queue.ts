@@ -8,6 +8,7 @@ export interface QueueRequestResult {
   email: string;
   boothNumber: string;
   queueNumber: number | null;
+  qrToken: string | null;
   error: string | null;
 }
 
@@ -87,6 +88,7 @@ async function runPool(
           email: job.client.email,
           boothNumber: job.client.boothNumber,
           queueNumber: result.ticket?.queueNumber ?? null,
+          qrToken: result.ticket?.qrToken ?? null,
           error: result.error ?? null,
         };
       } catch (error) {
@@ -95,6 +97,7 @@ async function runPool(
           email: job.client.email,
           boothNumber: job.client.boothNumber,
           queueNumber: null,
+          qrToken: null,
           error: String(error),
         };
       }

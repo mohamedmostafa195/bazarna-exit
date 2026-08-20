@@ -1,4 +1,12 @@
-type Phase = "setup" | "register" | "events" | "assign" | "queue" | "report" | "cleanup";
+type Phase =
+  | "setup"
+  | "register"
+  | "events"
+  | "assign"
+  | "queue"
+  | "scan"
+  | "report"
+  | "cleanup";
 
 const icons: Record<Phase, string> = {
   setup: "⚙",
@@ -6,6 +14,7 @@ const icons: Record<Phase, string> = {
   events: "📅",
   assign: "🏷",
   queue: "🚀",
+  scan: "📱",
   report: "📊",
   cleanup: "🧹",
 };

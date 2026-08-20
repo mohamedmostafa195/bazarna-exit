@@ -79,6 +79,7 @@ Simulates real client flow:
   1. Register brand accounts (like /api/auth/register)
   2. Create Bazarna + Byouth events with zones (same queue window)
   3. All clients request exit numbers + booth at the same time
+  4. All QR codes scanned for exit checkout at the same time
 
 Usage:
   npm run test:queue              # 500 clients (250 Bazarna + 250 Byouth)
