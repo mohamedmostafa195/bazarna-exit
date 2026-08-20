@@ -65,60 +65,71 @@ interface QueueData {
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const initialCache = readQueueCache<QueueData>();
-  const [data, setData]   = useState<QueueData | null>(initialCache);
-  const [loading, setLoading]       = useState(() => !hasUsableQueueCache(initialCache));
+  // Always start the same on server + first client paint to avoid hydration mismatch.
+  // Cache is applied in useEffect after mount.
+  const [data, setData] = useState<QueueData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
-  const [selectedZone,   setSelectedZone]   = useState("");
+  const [selectedZone, setSelectedZone] = useState("");
   const [selectedNumber, setSelectedNumber] = useState("");
+  const [origin, setOrigin] = useState("");
 
   /* fetch -------------------------------------------------- */
+  const applyPayload = useCallback((payload: QueueData) => {
+    setData(payload);
+    writeQueueCache(payload);
+    if (
+      payload.user?.boothNumber &&
+      payload.user.boothNumber !== "—" &&
+      payload.user.boothNumber !== "N/A"
+    ) {
+      const p = parseBoothNumber(payload.user.boothNumber);
+      if (p) {
+        setSelectedZone((prev) => prev || p.zone);
+        setSelectedNumber((prev) => prev || String(p.number));
+      }
+    }
+  }, []);
+
   const fetchStatus = useCallback(async () => {
     const { ok, data, status } = await fetchApi<
       QueueData & { error?: string; needsEntrance?: boolean }
     >("/api/queue/status");
-
-    if (status === 400 && data.needsEntrance) { window.location.href = "/"; return; }
-    if (ok) {
-      setData(data);
-      writeQueueCache(data);
-      if (data.user?.boothNumber && data.user.boothNumber !== "—" && data.user.boothNumber !== "N/A") {
-        const p = parseBoothNumber(data.user.boothNumber);
-        if (p) { setSelectedZone(prev => prev || p.zone); setSelectedNumber(prev => prev || String(p.number)); }
-      }
+    if (status === 400 && data.needsEntrance) {
+      window.location.href = "/";
+      return;
     }
+    if (ok) applyPayload(data);
     setLoading(false);
-  }, []);
+  }, [applyPayload]);
 
   useEffect(() => {
+    setOrigin(window.location.origin);
+
+    // Apply cache after mount (client-only) so SSR HTML matches.
+    const cached = readQueueCache<QueueData>();
+    if (hasUsableQueueCache(cached)) {
+      applyPayload(cached!);
+      setLoading(false);
+    }
+
     let cancelled = false;
     void (async () => {
       const { ok, data: payload, status } = await fetchApi<
         QueueData & { error?: string; needsEntrance?: boolean }
       >("/api/queue/status");
-
       if (cancelled) return;
       if (status === 400 && payload.needsEntrance) {
         window.location.href = "/";
         return;
       }
-      if (ok) {
-        setData(payload);
-        writeQueueCache(payload);
-        if (payload.user?.boothNumber && payload.user.boothNumber !== "—" && payload.user.boothNumber !== "N/A") {
-          const p = parseBoothNumber(payload.user.boothNumber);
-          if (p) {
-            setSelectedZone((prev) => prev || p.zone);
-            setSelectedNumber((prev) => prev || String(p.number));
-          }
-        }
-      }
+      if (ok) applyPayload(payload);
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [applyPayload]);
 
   /* clear occupied ----------------------------------------- */
   useEffect(() => {
@@ -509,7 +520,7 @@ export default function DashboardPage() {
             {/* ── QR CARD ── */}
             <div className="rounded-3xl border border-zinc-200/80 bg-white p-5 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               <p className="mb-4 text-[10px] font-extrabold uppercase tracking-[.2em] text-zinc-400">Show at exit gate</p>
-              <QRDisplay value={`${typeof window !== "undefined" ? window.location.origin : ""}/ticket/${data.ticket.qrToken}`} />
+              <QRDisplay value={`${origin}/ticket/${data.ticket.qrToken}`} />
             </div>
           </div>
         )}

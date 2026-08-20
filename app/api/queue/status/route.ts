@@ -57,7 +57,8 @@ export async function GET(request: Request) {
     const eventDayPassed = isEventDayPassed(event.eventDate);
     const queueEndedToday = windowState === "closed" && !eventDayPassed;
 
-    const [ticket, activeTickets] = await Promise.all([
+    // Run all three queries in parallel — single network round-trip to the DB.
+    const [ticket, activeTickets, otherTicketRaw] = await Promise.all([
       prisma.queueTicket.findUnique({
         where: {
           userId_eventId: {
@@ -72,20 +73,13 @@ export async function GET(request: Request) {
           userId: { not: session!.user.id },
           status: { in: ["WAITING", "CALLED"] },
         },
-        select: {
-          user: {
-            select: { boothNumber: true },
-          },
-        },
+        select: { user: { select: { boothNumber: true } } },
       }),
+      // Look for a ticket in the other entrance in parallel.
+      getActiveTicketInOtherEntrance(session!.user.id, event.entranceType),
     ]);
 
-    const otherTicket = ticket
-      ? null
-      : await getActiveTicketInOtherEntrance(
-          session!.user.id,
-          event.entranceType
-        );
+    const otherTicket = ticket ? null : otherTicketRaw;
 
     let otherEntranceTicket = null;
     if (otherTicket && isEntranceType(otherTicket.event.entranceType)) {

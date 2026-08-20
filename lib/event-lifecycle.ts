@@ -23,12 +23,27 @@ export async function resetQueueIfEventDayPassed(
 }
 
 export async function getActiveEventReady(entranceType?: string | null) {
-  const event = await getActiveEvent(entranceType);
-  if (!event) return null;
-
-  await resetQueueIfEventDayPassed(event);
-  return prisma.event.findUnique({
-    where: { id: event.id },
+  // Single query: get the active event with its zones in one DB round-trip.
+  const event = await prisma.event.findFirst({
+    where: {
+      isActive: true,
+      ...(entranceType ? { entranceType } : {}),
+    },
+    orderBy: { eventDate: "desc" },
     include: { zones: { orderBy: { name: "asc" } } },
   });
+
+  if (!event) return null;
+
+  // Reset tickets if the event day has passed (rare path, only fires once per day).
+  if (isEventDayPassed(event.eventDate)) {
+    await resetQueue(event.id);
+    // Reload so currentServingNumber / nextQueueNumber reflect the reset.
+    return prisma.event.findUnique({
+      where: { id: event.id },
+      include: { zones: { orderBy: { name: "asc" } } },
+    });
+  }
+
+  return event;
 }
