@@ -100,11 +100,10 @@ export function DashboardBanner({
             <video
               key={video.src}
               ref={videoRef}
-              className="pointer-events-auto absolute inset-x-0 top-0 h-[calc(100%+125px)] w-full -translate-y-[125px] object-cover object-center sm:inset-0 sm:h-full sm:translate-y-0"
+              className="pointer-events-none absolute inset-x-0 top-0 h-[calc(100%+125px)] w-full -translate-y-[125px] object-cover object-center sm:inset-0 sm:h-full sm:translate-y-0"
               autoPlay
               muted
               loop
-              controls
               playsInline
               preload="auto"
               poster={video.poster}
