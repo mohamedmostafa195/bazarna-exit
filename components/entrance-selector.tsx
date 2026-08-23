@@ -101,6 +101,7 @@ export function EntranceSelector() {
 
   return (
     <DashboardBanner
+      showVideo={false}
       overlay={
         loading ? (
           <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-[36rem] items-center justify-center bg-black/20 backdrop-blur-[1px] sm:h-[28rem]">

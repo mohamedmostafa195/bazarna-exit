@@ -244,7 +244,7 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <DashboardBanner
-        entranceType={currentEntrance}
+        entranceType={loading ? null : currentEntrance}
         overlay={
           <button
             type="button"

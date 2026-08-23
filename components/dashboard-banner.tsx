@@ -43,11 +43,13 @@ export function DashboardBanner({
   children,
   overlay,
   entranceType,
+  showVideo = true,
 }: {
   children: React.ReactNode;
   overlay?: React.ReactNode;
   /** BAZARNA / BYOUTH use R2 videos; otherwise the default image. */
   entranceType?: EntranceType | null;
+  showVideo?: boolean;
 }) {
   const cookieEntrance = useSyncExternalStore(
     () => () => {},
@@ -57,7 +59,7 @@ export function DashboardBanner({
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const resolvedEntrance = entranceType ?? cookieEntrance;
-  const video = bannerVideo(resolvedEntrance);
+  const video = showVideo ? bannerVideo(resolvedEntrance) : null;
 
   useEffect(() => {
     const el = videoRef.current;
