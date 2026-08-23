@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { startTransition, useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { AppShell } from "@/components/app-shell";
@@ -104,13 +104,15 @@ export default function DashboardPage() {
   }, [applyPayload]);
 
   useEffect(() => {
-    setOrigin(window.location.origin);
+    startTransition(() => setOrigin(window.location.origin));
 
     // Apply cache after mount (client-only) so SSR HTML matches.
     const cached = readQueueCache<QueueData>();
     if (hasUsableQueueCache(cached)) {
-      applyPayload(cached!);
-      setLoading(false);
+      startTransition(() => {
+        applyPayload(cached!);
+        setLoading(false);
+      });
     }
 
     let cancelled = false;
@@ -136,26 +138,29 @@ export default function DashboardPage() {
     if (!selectedZone || !selectedNumber) return;
     const occ = (data?.occupiedBooths ?? []).map(b => normalizeBoothCode(b)).filter((b): b is string => !!b);
     const code = normalizeBoothCode(`${selectedNumber}${selectedZone}`);
-    if (code && occ.includes(code)) setSelectedNumber("");
+    if (code && occ.includes(code)) {
+      startTransition(() => setSelectedNumber(""));
+    }
   }, [data?.occupiedBooths, selectedZone, selectedNumber]);
 
   /* socket ------------------------------------------------- */
   const { lastUpdate } = useSocket(data?.event?.id ?? null);
   useEffect(() => {
     if (!lastUpdate) return;
-    setData((prev) => {
-      if (!prev?.event) return prev;
+    startTransition(() => {
+      setData((prev) => {
+        if (!prev?.event) return prev;
 
-      let next = prev;
-      if (prev.event.currentServingNumber !== lastUpdate.currentServing) {
-        next = {
-          ...next,
-          event: {
-            ...prev.event,
-            currentServingNumber: lastUpdate.currentServing,
-          },
-        };
-      }
+        let next = prev;
+        if (prev.event.currentServingNumber !== lastUpdate.currentServing) {
+          next = {
+            ...next,
+            event: {
+              ...prev.event,
+              currentServingNumber: lastUpdate.currentServing,
+            },
+          };
+        }
 
       const fromPoll = Array.isArray(lastUpdate.occupiedBooths)
         ? (lastUpdate.occupiedBooths as string[])
@@ -182,7 +187,8 @@ export default function DashboardPage() {
         }
       }
 
-      return next;
+        return next;
+      });
     });
   }, [lastUpdate]);
 
@@ -191,7 +197,9 @@ export default function DashboardPage() {
   useEffect(() => {
     const match = document.cookie.match(/(?:^|;\s*)bazarna_entrance=([^;]+)/);
     const value = match?.[1] ? decodeURIComponent(match[1]) : null;
-    if (isEntranceType(value)) setCookieEntrance(value);
+    if (isEntranceType(value)) {
+      startTransition(() => setCookieEntrance(value));
+    }
   }, []);
 
   /* derived ------------------------------------------------ */
