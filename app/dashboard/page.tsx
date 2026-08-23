@@ -357,7 +357,10 @@ export default function DashboardPage() {
                 <p className="font-bold text-zinc-800 dark:text-zinc-200">Opens at {formatTime(openTime!)}</p>
                 {countdown && countdown.total > 0 && (
                   <div className="flex gap-2">
-                    {[{l:"hr",v:countdown.hours},{l:"min",v:countdown.minutes},{l:"sec",v:countdown.seconds}].map(({l,v}) => (
+                    {(countdown.total >= 24 * 60 * 60 * 1000
+                      ? [{ l: "days", v: Math.floor(countdown.total / (24 * 60 * 60 * 1000)) }]
+                      : [{ l: "hr", v: countdown.hours }, { l: "min", v: countdown.minutes }, { l: "sec", v: countdown.seconds }]
+                    ).map(({l,v}) => (
                       <div key={l} className="min-w-[60px] rounded-2xl bg-zinc-100 py-3 text-center dark:bg-zinc-800">
                         <p className="text-2xl font-black tabular-nums text-zinc-900 dark:text-zinc-100">{String(v).padStart(2,"0")}</p>
                         <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">{l}</p>
