@@ -14,7 +14,7 @@ import {
 } from "@/lib/entrance";
 import { writeOptimisticEntranceCache, writeQueueCache } from "@/lib/queue-cache";
 import { cn } from "@/lib/utils";
-import { LogOut } from "lucide-react";
+import { LoaderCircle, LogOut } from "lucide-react";
 import { DashboardBanner } from "@/components/dashboard-banner";
 
 export function EntranceSelector() {
@@ -100,7 +100,18 @@ export function EntranceSelector() {
   }, [router]);
 
   return (
-    <DashboardBanner>
+    <DashboardBanner
+      overlay={
+        loading ? (
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-[36rem] items-center justify-center bg-black/20 backdrop-blur-[1px] sm:h-[28rem]">
+            <div className="flex items-center gap-3 rounded-2xl border border-white/40 bg-white/90 px-5 py-4 text-base font-semibold text-zinc-800 shadow-xl dark:border-zinc-700 dark:bg-zinc-900/90 dark:text-zinc-100">
+              <LoaderCircle className="h-5 w-5 animate-spin text-orange-500" />
+              Opening {getEntranceLabel(loading)}...
+            </div>
+          </div>
+        ) : null
+      }
+    >
       <div dir="ltr" className="relative flex min-h-screen flex-col px-4 pb-12 pt-24 sm:px-6 sm:pt-48">
         <Image
           src="/image/LogoBazarna.jpg"
@@ -177,8 +188,15 @@ export function EntranceSelector() {
                   </p>
                 </div>
               </div>
-              <span className="mt-4 block w-full text-end text-sm font-medium text-orange-600 group-hover:underline dark:text-orange-400">
-                {loading === type ? "Opening…" : "Continue →"}
+              <span className="mt-4 flex w-full items-center justify-end gap-2 text-sm font-medium text-orange-600 group-hover:underline dark:text-orange-400">
+                {loading === type ? (
+                  <>
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                    Opening...
+                  </>
+                ) : (
+                  <>Continue →</>
+                )}
               </span>
             </button>
           ))}

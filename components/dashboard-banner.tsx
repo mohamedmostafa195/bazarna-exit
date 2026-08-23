@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import {
   ENTRANCE_COOKIE,
   isEntranceType,
@@ -49,12 +49,12 @@ export function DashboardBanner({
   /** BAZARNA / BYOUTH use R2 videos; otherwise the default image. */
   entranceType?: EntranceType | null;
 }) {
-  const [cookieEntrance, setCookieEntrance] = useState<EntranceType | null>(null);
+  const cookieEntrance = useSyncExternalStore(
+    () => () => {},
+    () => readEntranceCookie(),
+    () => null
+  );
   const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    setCookieEntrance(readEntranceCookie());
-  }, []);
 
   const resolvedEntrance = entranceType ?? cookieEntrance;
   const video = bannerVideo(resolvedEntrance);
@@ -71,7 +71,7 @@ export function DashboardBanner({
     play();
     el.addEventListener("loadeddata", play);
     return () => el.removeEventListener("loadeddata", play);
-  }, [video?.src]);
+  }, [video]);
 
   return (
     <div className="relative">
@@ -100,10 +100,11 @@ export function DashboardBanner({
             <video
               key={video.src}
               ref={videoRef}
-              className="absolute inset-x-0 top-0 h-[calc(100%+125px)] w-full -translate-y-[125px] object-cover object-center sm:inset-0 sm:h-full sm:translate-y-0"
+              className="pointer-events-auto absolute inset-x-0 top-0 h-[calc(100%+125px)] w-full -translate-y-[125px] object-cover object-center sm:inset-0 sm:h-full sm:translate-y-0"
               autoPlay
               muted
               loop
+              controls
               playsInline
               preload="auto"
               poster={video.poster}
