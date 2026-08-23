@@ -10,7 +10,7 @@ import {
 
 /** Select-entrance / fallback banner image. */
 export const DASHBOARD_BANNER_IMAGE =
-  "https://pub-c1e2cd0f5a51401993056e38c1816f26.r2.dev/pexels-alyona-nagel-1468385055-38937437.jpg";
+  "https://pub-c1e2cd0f5a51401993056e38c1816f26.r2.dev/Bazarna.jpg";
 
 export const BAZARNA_BANNER_VIDEO =
   "https://pub-c1e2cd0f5a51401993056e38c1816f26.r2.dev/Every%20color%2C%20every%20zipper%2C%20every%20detail%20is%20part%20of%20the%20story.Get%20a%20first%20look%20at%20the%20categories%20.mp4";
@@ -119,7 +119,7 @@ export function DashboardBanner({
               fill
               priority
               sizes="100vw"
-              className="object-cover object-top sm:object-center"
+              className="object-cover object-[center_50%] sm:object-center"
             />
           )}
           <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-transparent" />
