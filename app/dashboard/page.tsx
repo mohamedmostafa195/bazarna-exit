@@ -406,12 +406,20 @@ export default function DashboardPage() {
 
                   {/* Entrance chip */}
                   {currentEntrance && (
-                    <div className="mb-6 flex items-center gap-2 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-2 text-xs dark:border-zinc-700 dark:bg-zinc-800/50">
-                      <span className="relative h-4 w-4 shrink-0 overflow-hidden rounded">
-                        <Image src={getEntranceImage(currentEntrance)} alt="" fill sizes="16px" className="object-cover" />
+                    <div className="mb-6 flex items-center justify-between border-b border-zinc-200/80 pb-4 dark:border-zinc-700/80">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg">
+                          <Image src={getEntranceImage(currentEntrance)} alt="" fill sizes="32px" className="object-cover" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400">Selected exit</p>
+                          <p className="truncate text-sm font-bold text-zinc-800 dark:text-zinc-100">{data.entranceLabel}</p>
+                        </div>
+                      </div>
+                      <span className="ml-3 flex shrink-0 items-center gap-1.5 text-xs font-bold text-emerald-500">
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                        Open
                       </span>
-                      <span className="font-semibold text-zinc-600 dark:text-zinc-400">{data.entranceLabel} queue</span>
-                      <span className="ml-auto h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
                     </div>
                   )}
 
