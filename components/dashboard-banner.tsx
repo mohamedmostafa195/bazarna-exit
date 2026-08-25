@@ -60,20 +60,30 @@ export function DashboardBanner({
 
   const resolvedEntrance = entranceType ?? cookieEntrance;
   const video = showVideo ? bannerVideo(resolvedEntrance) : null;
+  const videoSrc = video?.src;
 
   useEffect(() => {
     const el = videoRef.current;
-    if (!el || !video) return;
+    if (!el || !videoSrc) return;
     el.muted = true;
     el.defaultMuted = true;
     el.playsInline = true;
+
     const play = () => {
       void el.play().catch(() => {});
     };
+
+    el.load();
     play();
+    el.addEventListener("canplay", play);
     el.addEventListener("loadeddata", play);
-    return () => el.removeEventListener("loadeddata", play);
-  }, [video]);
+    el.addEventListener("loadedmetadata", play);
+    return () => {
+      el.removeEventListener("canplay", play);
+      el.removeEventListener("loadeddata", play);
+      el.removeEventListener("loadedmetadata", play);
+    };
+  }, [videoSrc]);
 
   return (
     <div className="relative">
@@ -109,6 +119,9 @@ export function DashboardBanner({
               playsInline
               preload="auto"
               poster={video.poster}
+              onCanPlay={() => {
+                void videoRef.current?.play().catch(() => {});
+              }}
             >
               <source src={video.src} type="video/mp4" />
             </video>
