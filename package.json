@@ -5,8 +5,8 @@
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "tsx server.ts",
-    "build": "prisma generate && prisma db push --skip-generate && next build",
-    "vercel-build": "prisma generate && prisma db push --skip-generate && next build",
+    "build": "prisma generate && next build",
+    "vercel-build": "prisma generate && next build",
     "start": "tsx server.ts",
     "lint": "eslint",
     "db:generate": "prisma generate",
