@@ -15,13 +15,6 @@ export async function POST(request: Request) {
     ).catch(() => ({}) as { ticketId?: string; note?: string });
 
     const rawNote = typeof body.note === "string" ? body.note.trim() : "";
-    if (rawNote.length > 500) {
-      return NextResponse.json(
-        { error: "Note cannot exceed 500 characters" },
-        { status: 400 }
-      );
-    }
-
     const note = rawNote.length > 0 ? rawNote : null;
 
     let ticket = null;

@@ -212,7 +212,7 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
                   <div className="mt-2 rounded-xl border border-amber-200/80 bg-amber-50/60 p-3 text-sm text-zinc-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-zinc-200">
-                    <p className="whitespace-pre-wrap leading-relaxed">{n.note}</p>
+                    <p className="break-words whitespace-pre-wrap leading-relaxed [overflow-wrap:anywhere]">{n.note}</p>
                   </div>
                 </div>
               ))}

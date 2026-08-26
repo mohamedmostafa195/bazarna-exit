@@ -195,7 +195,7 @@ export default function ScannerPage() {
                   <MessageSquare className="h-4 w-4 shrink-0" />
                   <span>Brand Note / Issue:</span>
                 </div>
-                <p className="mt-1 whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-100">
+                <p className="mt-1 break-words whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-100 [overflow-wrap:anywhere]">
                   {ticket.note}
                 </p>
               </div>

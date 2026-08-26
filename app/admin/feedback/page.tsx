@@ -33,7 +33,6 @@ export default function AdminFeedbackPage() {
   const [eventName, setEventName] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
   const [completingId, setCompletingId] = useState<string | null>(null);
@@ -44,14 +43,13 @@ export default function AdminFeedbackPage() {
     async (
       targetEntrance: EntranceType,
       targetPage = page,
-      targetSearch = search,
-      targetFilter = statusFilter
+      targetSearch = search
     ) => {
       const params = new URLSearchParams({
         page: String(targetPage),
         limit: "20",
         search: targetSearch,
-        status: targetFilter,
+        status: "all",
         entrance: targetEntrance,
       });
 
@@ -70,7 +68,7 @@ export default function AdminFeedbackPage() {
       }
       setLoading(false);
     },
-    [page, search, statusFilter]
+    [page, search]
   );
 
   useEffect(() => {
@@ -106,18 +104,18 @@ export default function AdminFeedbackPage() {
 
   useEffect(() => {
     if (!loading) {
-      loadFeedback(activeEntranceRef.current, page, search, statusFilter);
+      loadFeedback(activeEntranceRef.current, page, search);
     }
-  }, [page, search, statusFilter, loading, loadFeedback]);
+  }, [page, search, loading, loadFeedback]);
 
   const pollUrl = `/api/admin/feedback?entrance=${entrance}`;
   const { lastUpdate } = useSocket(eventId, pollUrl);
 
   useEffect(() => {
     if (lastUpdate && !loading) {
-      loadFeedback(activeEntranceRef.current, page, search, statusFilter);
+      loadFeedback(activeEntranceRef.current, page, search);
     }
-  }, [lastUpdate, loading, loadFeedback, page, search, statusFilter]);
+  }, [lastUpdate, loading, loadFeedback, page, search]);
 
   async function handleMarkComplete(ticketId: string, queueNumber: number) {
     setCompletingId(ticketId);
@@ -137,7 +135,7 @@ export default function AdminFeedbackPage() {
     }
 
     toast.success(`Marked #${queueNumber} complete`);
-    loadFeedback(activeEntranceRef.current, page, search, statusFilter);
+    loadFeedback(activeEntranceRef.current, page, search);
   }
 
   if (loading) {
@@ -172,34 +170,18 @@ export default function AdminFeedbackPage() {
 
         {/* Filters */}
         <Card className="mb-6">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="relative min-w-[220px] flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-              <input
-                type="text"
-                placeholder="Search by brand, booth, note text..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full rounded-xl border border-zinc-200 bg-white py-2 pl-9 pr-4 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-              />
-            </div>
-
-            <select
-              value={statusFilter}
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+            <input
+              type="text"
+              placeholder="Search by brand, booth, note text..."
+              value={search}
               onChange={(e) => {
-                setStatusFilter(e.target.value);
+                setSearch(e.target.value);
                 setPage(1);
               }}
-              className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-            >
-              <option value="all">All Statuses</option>
-              <option value="waiting">Waiting</option>
-              <option value="called">Called</option>
-              <option value="completed">Completed</option>
-            </select>
+              className="w-full rounded-xl border border-zinc-200 bg-white py-2 pl-9 pr-4 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            />
           </div>
         </Card>
 
@@ -214,7 +196,7 @@ export default function AdminFeedbackPage() {
                 No Notes or Feedback Found
               </h3>
               <p className="mt-1 text-sm text-zinc-400">
-                {search || statusFilter !== "all"
+                {search
                   ? "Try clearing filters to view all feedback."
                   : "Brands haven't submitted any exit notes for this queue yet."}
               </p>
@@ -268,7 +250,7 @@ export default function AdminFeedbackPage() {
                     <MessageSquare className="h-3.5 w-3.5" />
                     <span>Vendor Note:</span>
                   </div>
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-900 dark:text-zinc-100">
+                  <p className="break-words whitespace-pre-wrap text-sm leading-relaxed text-zinc-900 dark:text-zinc-100 [overflow-wrap:anywhere]">
                     {item.note}
                   </p>
                 </div>

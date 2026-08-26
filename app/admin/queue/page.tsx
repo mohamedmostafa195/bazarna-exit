@@ -350,7 +350,7 @@ export default function AdminQueuePage() {
               </div>
 
               <div className="mt-4 rounded-2xl border border-amber-200/60 bg-amber-50/50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-800 dark:text-zinc-200">
+                <p className="break-words whitespace-pre-wrap text-sm leading-relaxed text-zinc-800 dark:text-zinc-200 [overflow-wrap:anywhere]">
                   {selectedNoteTicket.note}
                 </p>
               </div>

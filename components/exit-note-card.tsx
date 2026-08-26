@@ -20,7 +20,6 @@ export function ExitNoteCard({
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  const charLimit = 500;
   const isDirty = (initialNote ?? "") !== note.trim();
 
   async function handleSave() {
@@ -94,19 +93,14 @@ export function ExitNoteCard({
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          maxLength={charLimit}
           rows={3}
-          placeholder="e.g. Any issue with your booth, luggage trolley, or organizer feedback..."
+          placeholder="e.g. Any issue with luggage trolley, organizer feedback, etc..."
           className="w-full resize-none rounded-2xl border border-zinc-200 bg-white/90 p-3.5 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700 dark:bg-zinc-800/90 dark:text-zinc-100"
         />
       </div>
 
       {/* Footer */}
-      <div className="mt-2 flex items-center justify-between">
-        <span className="text-[10px] tabular-nums text-zinc-400">
-          {note.length} / {charLimit}
-        </span>
-
+      <div className="mt-2 flex items-center justify-end">
         <button
           type="button"
           disabled={saving || (!isDirty && !note.trim())}
