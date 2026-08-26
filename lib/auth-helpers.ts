@@ -34,6 +34,7 @@ async function resolveUserRole(
 ) {
   const normalized = sessionRole?.toUpperCase();
   if (normalized === "ADMIN") return "ADMIN";
+  if (normalized === "SCANNER") return "SCANNER";
 
   try {
     let dbRole: string | null = null;
@@ -55,6 +56,7 @@ async function resolveUserRole(
     }
 
     if (dbRole === "ADMIN") return "ADMIN";
+    if (dbRole === "SCANNER") return "SCANNER";
     if (dbRole === "BRAND") return "BRAND";
   } catch {
     /* fall back to session role when database is unavailable */
@@ -79,6 +81,28 @@ export async function requireAdmin(request?: Request) {
       session: null,
       error: NextResponse.json(
         { error: "Admin access required" },
+        { status: 403 }
+      ),
+    };
+  }
+  return result;
+}
+
+export async function requireAdminOrScanner(request?: Request) {
+  const result = await requireAuth(request);
+  if (result.error) return result;
+
+  const role = await resolveUserRole(
+    result.session!.user.id,
+    result.session!.user.role,
+    result.session!.user.email
+  );
+
+  if (role !== "ADMIN" && role !== "SCANNER") {
+    return {
+      session: null,
+      error: NextResponse.json(
+        { error: "Admin or Scanner access required" },
         { status: 403 }
       ),
     };

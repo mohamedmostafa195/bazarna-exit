@@ -46,6 +46,12 @@ export default function LoginPage() {
       return;
     }
 
+    if (role === "SCANNER") {
+      router.replace("/admin/scanner");
+      router.refresh();
+      return;
+    }
+
     await fetchApi("/api/entrance", { method: "DELETE" });
     router.replace("/select-entrance");
     router.refresh();

@@ -47,7 +47,32 @@ async function main() {
     },
   });
 
-  const today = new Date();
+  const scannerPassword = await bcrypt.hash("scannerPassword", 12);
+  const scannerEmail = "scanner@bazarna.com";
+
+  // Migrate legacy mixed-case email if present 
+  const legacyScanner = await prisma.user.findFirst({
+    where: { email: { equals: scannerEmail, mode: "insensitive" } },
+  });
+  if (legacyScanner && legacyScanner.email !== scannerEmail) {
+    await prisma.user.update({
+      where: { id: legacyScanner.id },
+      data: { email: scannerEmail },
+    });
+  }
+
+  const scannerUser = await prisma.user.upsert({
+    where: { email: scannerEmail },
+    update: { password: scannerPassword, role: "SCANNER" },
+    create: {
+      email: scannerEmail,
+      password: scannerPassword,
+      brandName: "Bazarna",
+      representativeName: "Scanner",
+      boothNumber: "N/A",
+      role: "SCANNER",
+    },
+  });
 
   const { bazarna: bazarnaEvent, byouth: byouthEvent } =
     await ensureAllEntranceEvents();
@@ -70,6 +95,7 @@ async function main() {
   console.log("Seed complete!");
   console.log("Admin:", admin.email, "/ admin123456");
   console.log("Admin:", yassmineAdmin.email, "/ yassminePassword");
+  console.log("Scanner:", scannerUser.email, "/ scannerPassword");
   console.log("Brand: brand@example.com / brand123456");
   console.log("Bazarna event:", bazarnaEvent.eventName);
   console.log("Byouth event:", byouthEvent.eventName);

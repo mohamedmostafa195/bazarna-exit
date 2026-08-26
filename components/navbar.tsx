@@ -32,8 +32,13 @@ export function Navbar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
-  const isBrandDashboard = !isAdmin && pathname === "/dashboard";
-  const links = isAdmin ? adminLinks : [];
+  const isScanner = session?.user?.role === "SCANNER";
+  const isBrandDashboard = !isAdmin && !isScanner && pathname === "/dashboard";
+  const links = isAdmin
+    ? adminLinks
+    : isScanner
+      ? [{ href: "/admin/scanner", label: "Scanner", icon: ScanLine }]
+      : [];
   const [loggingOut, setLoggingOut] = useState(false);
 
   if (!session) return null;

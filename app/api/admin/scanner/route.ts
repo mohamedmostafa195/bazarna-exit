@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth-helpers";
+import { requireAdminOrScanner } from "@/lib/auth-helpers";
 import { markCompleted } from "@/lib/queue";
 import { logAction } from "@/lib/action-log";
 import { prisma } from "@/lib/prisma";
@@ -7,7 +7,7 @@ import { parseJsonBody, withApiHandler } from "@/lib/api-error";
 
 export async function POST(request: Request) {
   return withApiHandler(async () => {
-    const { session, error } = await requireAdmin(request);
+    const { session, error } = await requireAdminOrScanner(request);
     if (error) return error;
 
     const body = await parseJsonBody<{ qrToken?: string }>(request);
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   return withApiHandler(async () => {
-    const { error } = await requireAdmin(request);
+    const { error } = await requireAdminOrScanner(request);
     if (error) return error;
 
     const { searchParams } = new URL(request.url);

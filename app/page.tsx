@@ -13,6 +13,10 @@ export default async function Home() {
     redirect("/admin/dashboard");
   }
 
+  if (session.user.role === "SCANNER") {
+    redirect("/admin/scanner");
+  }
+
   const entrance = await getEntranceFromCookies();
 
   if (!entrance) {

@@ -2,11 +2,17 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { Navbar } from "@/components/navbar";
 
-export async function requirePageAuth(role?: "ADMIN" | "BRAND") {
+export async function requirePageAuth(role?: "ADMIN" | "BRAND" | "SCANNER") {
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (role && session.user.role !== role) {
-    redirect(session.user.role === "ADMIN" ? "/admin/dashboard" : "/dashboard");
+    if (session.user.role === "ADMIN") {
+      redirect("/admin/dashboard");
+    } else if (session.user.role === "SCANNER") {
+      redirect("/admin/scanner");
+    } else {
+      redirect("/dashboard");
+    }
   }
   return session;
 }

@@ -30,7 +30,8 @@ export function EntranceSelector() {
     setError(null);
 
     const isAdmin = session?.user?.role === "ADMIN";
-    const target = isAdmin ? "/admin/dashboard" : "/dashboard";
+    const isScanner = session?.user?.role === "SCANNER";
+    const target = isAdmin ? "/admin/dashboard" : isScanner ? "/admin/scanner" : "/dashboard";
 
     try {
       const { ok, data, status } = await fetchApi<{ error?: string }>(

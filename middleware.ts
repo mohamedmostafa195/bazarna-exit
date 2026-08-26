@@ -45,6 +45,9 @@ export default auth((req) => {
     if (role === "ADMIN") {
       return redirectTo("/admin/dashboard", req);
     }
+    if (role === "SCANNER") {
+      return redirectTo("/admin/scanner", req);
+    }
     return NextResponse.next();
   }
 
@@ -53,9 +56,16 @@ export default auth((req) => {
       return redirectTo("/login", req);
     }
     // Brands must pick an entrance; admins use tabs on the dashboard
-    if (!hasEntrance && role !== "ADMIN") {
+    if (!hasEntrance && role !== "ADMIN" && role !== "SCANNER") {
       return redirectTo("/select-entrance", req);
     }
+  }
+
+  if (role === "SCANNER") {
+    if (path !== "/admin/scanner") {
+      return redirectTo("/admin/scanner", req);
+    }
+    return NextResponse.next();
   }
 
   if (isAdminRoute && role !== "ADMIN") {

@@ -13,5 +13,9 @@ export default async function SelectEntrancePage() {
     redirect("/admin/dashboard");
   }
 
+  if (session.user.role === "SCANNER") {
+    redirect("/admin/scanner");
+  }
+
   return <EntranceSelector />;
 }
