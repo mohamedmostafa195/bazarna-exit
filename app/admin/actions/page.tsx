@@ -181,7 +181,7 @@ export default function AdminActionsPage() {
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 font-medium text-zinc-900 dark:text-zinc-100">
+                    <p className="mt-0.5 font-medium text-zinc-900 break-words [overflow-wrap:anywhere] dark:text-zinc-100">
                       {getActionSummary(log)}
                     </p>
                     <p className="mt-1 text-xs text-zinc-400">
