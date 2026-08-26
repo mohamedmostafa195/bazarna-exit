@@ -17,11 +17,13 @@ import {
   LogOut,
   Activity,
   UserCog,
+  MessageSquare,
 } from "lucide-react";
 
 const adminLinks = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/queue", label: "Queue", icon: ListOrdered },
+  { href: "/admin/feedback", label: "Feedback", icon: MessageSquare },
   { href: "/admin/actions", label: "Activity", icon: Activity },
   { href: "/admin/accounts", label: "Accounts", icon: UserCog },
   { href: "/admin/scanner", label: "Scanner", icon: ScanLine },

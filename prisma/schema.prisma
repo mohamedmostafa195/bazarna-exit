@@ -58,6 +58,7 @@ model QueueTicket {
   queueNumber Int       @map("queue_number")
   status      String    @default("WAITING")
   qrToken     String    @unique @map("qr_token")
+  note        String?
   requestedAt DateTime  @default(now()) @map("requested_at")
   calledAt    DateTime? @map("called_at")
   completedAt DateTime? @map("completed_at")

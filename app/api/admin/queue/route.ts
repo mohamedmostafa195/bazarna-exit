@@ -30,7 +30,9 @@ export async function GET(request: Request) {
 
   let tickets = stats.tickets;
 
-  if (status && status !== "all") {
+  if (status === "notes") {
+    tickets = tickets.filter((t) => Boolean(t.note && t.note.trim().length > 0));
+  } else if (status && status !== "all") {
     tickets = tickets.filter((t) => t.status === status.toUpperCase());
   }
 
@@ -67,6 +69,7 @@ export async function GET(request: Request) {
       calledAt: t.calledAt,
       completedAt: t.completedAt,
       qrToken: t.qrToken,
+      note: t.note,
     })),
     stats: {
       currentServing: stats.currentServing,

@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { fetchApi } from "@/lib/fetch-api";
 import { EntranceTabs } from "@/components/entrance-tabs";
 import { type EntranceType } from "@/lib/entrance";
-import { CheckCircle, Trash2, Search } from "lucide-react";
+import { CheckCircle, Trash2, Search, MessageSquare, X } from "lucide-react";
 
 interface Ticket {
   id: string;
@@ -23,6 +23,7 @@ interface Ticket {
   calledAt: string | null;
   completedAt: string | null;
   qrToken: string;
+  note?: string | null;
 }
 
 export default function AdminQueuePage() {
@@ -34,6 +35,7 @@ export default function AdminQueuePage() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [selectedNoteTicket, setSelectedNoteTicket] = useState<Ticket | null>(null);
   const [entrance, setEntrance] = useState<EntranceType>("BAZARNA");
   const activeEntranceRef = useRef<EntranceType>("BAZARNA");
 
@@ -207,6 +209,7 @@ export default function AdminQueuePage() {
               <option value="waiting">Waiting</option>
               <option value="called">Called</option>
               <option value="completed">Completed</option>
+              <option value="notes">Has Note / Feedback 📝</option>
             </select>
           </div>
 
@@ -232,7 +235,20 @@ export default function AdminQueuePage() {
                     <td className="py-3 pr-4 font-semibold">
                       #{t.queueNumber}
                     </td>
-                    <td className="py-3 pr-4">{t.brandName}</td>
+                    <td className="py-3 pr-4">
+                      <div className="font-medium text-zinc-900 dark:text-zinc-100">{t.brandName}</div>
+                      {t.note && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedNoteTicket(t)}
+                          className="mt-1 flex max-w-[200px] items-center gap-1 truncate rounded-lg border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 transition hover:bg-amber-100 active:scale-95 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/50"
+                          title={t.note}
+                        >
+                          <MessageSquare className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />
+                          <span className="truncate">{t.note}</span>
+                        </button>
+                      )}
+                    </td>
                     <td className="py-3 pr-4">{t.boothNumber}</td>
                     <td className="py-3 pr-4">
                       <StatusBadge status={t.status} />
@@ -306,6 +322,47 @@ export default function AdminQueuePage() {
             </div>
           )}
         </Card>
+
+        {/* Note Viewer Modal */}
+        {selectedNoteTicket && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-3xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="flex items-center justify-between border-b border-zinc-100 pb-3 dark:border-zinc-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400">
+                    <MessageSquare className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                      Exit Note & Feedback
+                    </h3>
+                    <p className="text-xs text-zinc-500">
+                      #{selectedNoteTicket.queueNumber} • {selectedNoteTicket.brandName} (Booth {selectedNoteTicket.boothNumber})
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedNoteTicket(null)}
+                  className="rounded-full p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-amber-200/60 bg-amber-50/50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-800 dark:text-zinc-200">
+                  {selectedNoteTicket.note}
+                </p>
+              </div>
+
+              <div className="mt-5 flex justify-end">
+                <Button onClick={() => setSelectedNoteTicket(null)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AppShell>
   );

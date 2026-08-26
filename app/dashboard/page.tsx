@@ -19,6 +19,7 @@ import { hasUsableQueueCache, readQueueCache, writeQueueCache } from "@/lib/queu
 import { CheckCircle2, AlertCircle, Clock, ArrowLeft } from "lucide-react";
 import { BoothNumberPicker } from "@/components/booth-number-picker";
 import { DashboardBanner } from "@/components/dashboard-banner";
+import { ExitNoteCard } from "@/components/exit-note-card";
 import {
   parseBoothNumber,
   normalizeBoothCode,
@@ -42,6 +43,7 @@ interface QueueData {
     queueNumber: number;
     status: string;
     qrToken: string;
+    note?: string | null;
     requestedAt: string;
   } | null;
   otherEntranceTicket?: {
@@ -568,6 +570,20 @@ export default function DashboardPage() {
             <p className="mb-4 text-[10px] font-extrabold uppercase tracking-[.2em] text-zinc-400">Show at exit gate</p>
             <QRDisplay value={`${origin}/ticket/${data.ticket.qrToken}`} />
           </div>
+
+          <ExitNoteCard
+            ticketId={data.ticket.id}
+            initialNote={data.ticket.note}
+            onNoteUpdated={(newNote) => {
+              setData((prev) => {
+                if (!prev?.ticket) return prev;
+                return {
+                  ...prev,
+                  ticket: { ...prev.ticket, note: newNote },
+                };
+              });
+            }}
+          />
         </div>
       )}
     </AppShell>

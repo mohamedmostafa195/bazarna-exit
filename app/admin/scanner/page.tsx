@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/fetch-api";
 import { Html5Qrcode } from "html5-qrcode";
+import { MessageSquare } from "lucide-react";
 
 interface ScannedTicket {
   id: string;
@@ -17,6 +18,7 @@ interface ScannedTicket {
   queueNumber: number;
   status: string;
   eventName: string;
+  note?: string | null;
 }
 
 export default function ScannerPage() {
@@ -186,6 +188,18 @@ export default function ScannerPage() {
                 <span>{ticket.eventName}</span>
               </div>
             </div>
+
+            {ticket.note && (
+              <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-3.5 dark:border-amber-800/80 dark:bg-amber-950/40">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300">
+                  <MessageSquare className="h-4 w-4 shrink-0" />
+                  <span>Brand Note / Issue:</span>
+                </div>
+                <p className="mt-1 whitespace-pre-wrap text-sm font-medium text-amber-950 dark:text-amber-100">
+                  {ticket.note}
+                </p>
+              </div>
+            )}
 
             {!alreadyCompleted && ticket.status !== "COMPLETED" && (
               <Button

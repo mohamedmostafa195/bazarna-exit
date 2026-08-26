@@ -42,6 +42,7 @@ export async function POST(request: Request) {
             queueNumber: ticket.queueNumber,
             status: ticket.status,
             eventName: ticket.event.eventName,
+            note: ticket.note,
           },
         },
         { status: 409 }
@@ -71,6 +72,7 @@ export async function POST(request: Request) {
         queueNumber: ticket.queueNumber,
         status: "COMPLETED",
         eventName: ticket.event.eventName,
+        note: ticket.note,
       },
     });
   }, "POST /api/admin/scanner");
@@ -111,6 +113,7 @@ export async function GET(request: Request) {
         queueNumber: ticket.queueNumber,
         status: ticket.status,
         eventName: ticket.event.eventName,
+        note: ticket.note,
       },
     });
   }, "GET /api/admin/scanner");

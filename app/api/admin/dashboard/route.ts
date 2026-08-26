@@ -22,6 +22,18 @@ export async function GET(request: Request) {
 
   const stats = await getQueueStats(event.id);
 
+  const notes = stats.tickets
+    .filter((t) => Boolean(t.note && t.note.trim().length > 0))
+    .map((t) => ({
+      id: t.id,
+      queueNumber: t.queueNumber,
+      brandName: t.user.brandName,
+      boothNumber: t.user.boothNumber,
+      status: t.status,
+      note: t.note!,
+      requestedAt: t.requestedAt,
+    }));
+
   return NextResponse.json({
     event: {
       id: event.id,
@@ -38,7 +50,9 @@ export async function GET(request: Request) {
       totalWaiting: stats.totalWaiting,
       totalCompleted: stats.totalCompleted,
       total: stats.tickets.length,
+      totalNotes: notes.length,
     },
+    notes,
     entranceType,
   });
   }, "GET /api/admin/dashboard");

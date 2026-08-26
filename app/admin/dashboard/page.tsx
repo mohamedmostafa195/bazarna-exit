@@ -5,11 +5,13 @@ import { AppShell } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useSocket } from "@/hooks/use-socket";
-import { Users, CheckCircle, Clock } from "lucide-react";
+import { Users, CheckCircle, Clock, MessageSquare, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { EntranceTabs } from "@/components/entrance-tabs";
 import { getEntranceLabel, type EntranceType } from "@/lib/entrance";
 import { fetchApi } from "@/lib/fetch-api";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { formatTime } from "@/lib/utils";
 
 interface DashboardStats {
   event: {
@@ -25,7 +27,17 @@ interface DashboardStats {
     totalWaiting: number;
     totalCompleted: number;
     total: number;
+    totalNotes?: number;
   } | null;
+  notes?: {
+    id: string;
+    queueNumber: number;
+    brandName: string;
+    boothNumber: string;
+    status: string;
+    note: string;
+    requestedAt: string;
+  }[];
 }
 
 export default function AdminDashboardPage() {
@@ -125,7 +137,7 @@ export default function AdminDashboardPage() {
           className="mb-6 max-w-md"
         />
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <div className="flex items-center gap-3">
               <div className="rounded-lg bg-amber-100 p-2 dark:bg-amber-900/30">
@@ -161,7 +173,61 @@ export default function AdminDashboardPage() {
               </div>
             </div>
           </Card>
+          <Card>
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-orange-100 p-2 dark:bg-orange-900/30">
+                <MessageSquare className="h-5 w-5 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-sm text-zinc-500">Notes & Feedback</p>
+                <p className="text-2xl font-bold">{stats?.totalNotes ?? data?.notes?.length ?? 0}</p>
+              </div>
+            </div>
+          </Card>
         </div>
+
+        {/* Brand Notes & Feedback Section */}
+        {data?.notes && data.notes.length > 0 && (
+          <Card className="mt-6" title="Brand Notes & Feedback">
+            <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              {data.notes.map((n) => (
+                <div key={n.id} className="py-3 first:pt-0 last:pb-0">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-orange-600 dark:text-orange-400">
+                        #{n.queueNumber}
+                      </span>
+                      <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                        {n.brandName}
+                      </span>
+                      <span className="text-xs text-zinc-400">
+                        (Booth {n.boothNumber})
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <StatusBadge status={n.status} />
+                      <span className="text-xs text-zinc-400">
+                        {formatTime(new Date(n.requestedAt))}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-2 rounded-xl border border-amber-200/80 bg-amber-50/60 p-3 text-sm text-zinc-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-zinc-200">
+                    <p className="whitespace-pre-wrap leading-relaxed">{n.note}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex justify-end border-t border-zinc-100 pt-3 dark:border-zinc-800">
+              <Link
+                href={`/admin/queue?status=notes`}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-orange-600 hover:text-orange-700 dark:text-orange-400"
+              >
+                View all in Queue Management
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          </Card>
+        )}
 
         {stats?.upcoming && stats.upcoming.length > 0 && (
           <Card className="mt-6" title="Upcoming Numbers">

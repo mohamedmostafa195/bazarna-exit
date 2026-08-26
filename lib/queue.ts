@@ -88,6 +88,7 @@ export async function broadcastQueueUpdate(eventId: string) {
         requestedAt: t.requestedAt,
         calledAt: t.calledAt,
         completedAt: t.completedAt,
+        note: t.note,
       })),
       totalWaiting: stats.totalWaiting,
       totalCompleted: stats.totalCompleted,
