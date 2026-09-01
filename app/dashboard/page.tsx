@@ -451,7 +451,7 @@ export default function DashboardPage() {
                       </select>
                     </div>
                     <div className="flex flex-col">
-                      <label className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-widest text-zinc-500">Booth #</label>
+                      <label className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-widest text-zinc-500">Your Booth Number</label>
                       <BoothNumberPicker zone={selectedZone} limit={zoneObj?.limit ?? 0} value={selectedNumber} occupied={occ} disabled={!selectedZone || zoneFull} onChange={setSelectedNumber} />
                     </div>
                   </div>

@@ -81,12 +81,14 @@ export default function RegisterPage() {
           <div className="space-y-4">
             <Input
               label="Brand Name"
+              placeholder="e.g. Juvenile , Frenchee"
               value={form.brandName}
               onChange={(e) => setForm({ ...form, brandName: e.target.value })}
               required
             />
             <Input
               label="Representative Name"
+              placeholder="e.g. Mohamed Ahmed"
               value={form.representativeName}
               onChange={(e) =>
                 setForm({ ...form, representativeName: e.target.value })
@@ -96,6 +98,7 @@ export default function RegisterPage() {
             <Input
               label="Email"
               type="email"
+              placeholder="e.g. you@example.com"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               required
@@ -103,6 +106,7 @@ export default function RegisterPage() {
             <Input
               label="Password"
               type="password"
+              placeholder="At least 8 characters"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               required
