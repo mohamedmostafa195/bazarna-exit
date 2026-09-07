@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
-import { getActiveEvent, getQueueStats } from "@/lib/queue";
+import { getActiveEvent, getQueueStats, scheduleQueueBroadcast } from "@/lib/queue";
 import { getEntranceFromRequest } from "@/lib/entrance-server";
 import { prisma } from "@/lib/prisma";
-import { withApiHandler } from "@/lib/api-error";
+import { parseJsonBody, withApiHandler } from "@/lib/api-error";
+import { logAction } from "@/lib/action-log";
 
 export async function GET(request: Request) {
   return withApiHandler(async () => {
@@ -76,4 +77,66 @@ export async function GET(request: Request) {
       },
     });
   }, "GET /api/admin/feedback");
+}
+
+export async function DELETE(request: Request) {
+  return withApiHandler(async () => {
+    const { error, session } = await requireAdmin(request);
+    if (error) return error;
+
+    const { searchParams } = new URL(request.url);
+    let ticketId = searchParams.get("ticketId");
+
+    if (!ticketId) {
+      const body = await parseJsonBody<{ ticketId?: string }>(request).catch(
+        () => ({}) as { ticketId?: string }
+      );
+      ticketId = body.ticketId ?? null;
+    }
+
+    if (!ticketId) {
+      return NextResponse.json(
+        { error: "Ticket ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const ticket = await prisma.queueTicket.findUnique({
+      where: { id: ticketId },
+      include: {
+        user: { select: { brandName: true, boothNumber: true } },
+        event: { select: { id: true, entranceType: true } },
+      },
+    });
+
+    if (!ticket) {
+      return NextResponse.json(
+        { error: "Ticket not found" },
+        { status: 404 }
+      );
+    }
+
+    const previousNote = ticket.note;
+
+    // Clear the note from the ticket
+    await prisma.queueTicket.update({
+      where: { id: ticketId },
+      data: { note: null },
+    });
+
+    scheduleQueueBroadcast(ticket.eventId);
+
+    const actor = session?.user?.name ?? session?.user?.email ?? "Admin";
+    void logAction({
+      action: "NOTE_DELETED",
+      actorName: actor,
+      entranceType: ticket.event.entranceType,
+      eventId: ticket.event.id,
+      brandName: ticket.user.brandName,
+      queueNumber: ticket.queueNumber,
+      details: `Admin deleted note for ${ticket.user.brandName} (Booth ${ticket.user.boothNumber}): "${previousNote ?? ""}"`,
+    }).catch((err) => console.error("Failed to log note deletion:", err));
+
+    return NextResponse.json({ success: true });
+  }, "DELETE /api/admin/feedback");
 }

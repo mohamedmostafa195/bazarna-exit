@@ -4,14 +4,13 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { useSocket } from "@/hooks/use-socket";
 import { formatTime } from "@/lib/utils";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/fetch-api";
 import { EntranceTabs } from "@/components/entrance-tabs";
 import { type EntranceType, getEntranceLabel } from "@/lib/entrance";
-import { MessageSquare, Search, CheckCircle, Store, Clock } from "lucide-react";
+import { MessageSquare, Search, Store, Trash2 } from "lucide-react";
 
 interface FeedbackItem {
   id: string;
@@ -35,7 +34,7 @@ export default function AdminFeedbackPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
-  const [completingId, setCompletingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [entrance, setEntrance] = useState<EntranceType>("BAZARNA");
   const activeEntranceRef = useRef<EntranceType>("BAZARNA");
 
@@ -117,24 +116,28 @@ export default function AdminFeedbackPage() {
     }
   }, [lastUpdate, loading, loadFeedback, page, search]);
 
-  async function handleMarkComplete(ticketId: string, queueNumber: number) {
-    setCompletingId(ticketId);
-    const { ok, data } = await fetchApi<{ error?: string }>(
-      `/api/admin/queue/complete?entrance=${activeEntranceRef.current}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ticketId }),
-      }
-    );
-    setCompletingId(null);
-
-    if (!ok) {
-      toast.error(data.error ?? "Failed to mark complete");
+  async function handleDeleteNote(ticketId: string, queueNumber: number, brandName: string) {
+    if (
+      !confirm(
+        `Are you sure you want to delete the note from #${queueNumber} (${brandName})?\n\nThis will remove the note from this ticket.`
+      )
+    ) {
       return;
     }
 
-    toast.success(`Marked #${queueNumber} complete`);
+    setDeletingId(ticketId);
+    const { ok, data } = await fetchApi<{ error?: string }>(
+      `/api/admin/feedback?ticketId=${ticketId}`,
+      { method: "DELETE" }
+    );
+    setDeletingId(null);
+
+    if (!ok) {
+      toast.error(data.error ?? "Failed to delete note");
+      return;
+    }
+
+    toast.success(`Deleted note for #${queueNumber}`);
     loadFeedback(activeEntranceRef.current, page, search);
   }
 
@@ -205,7 +208,10 @@ export default function AdminFeedbackPage() {
         ) : (
           <div className="space-y-4">
             {items.map((item) => (
-              <Card key={item.id} className="transition hover:border-orange-200 dark:hover:border-orange-900/50">
+              <Card
+                key={item.id}
+                className="transition hover:border-orange-200 dark:hover:border-orange-900/50"
+              >
                 <div className="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-100 pb-3 dark:border-zinc-800">
                   <div className="flex items-center gap-3">
                     <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-100 font-extrabold text-orange-600 dark:bg-orange-950/60 dark:text-orange-400">
@@ -228,21 +234,16 @@ export default function AdminFeedbackPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <StatusBadge status={item.status} />
-                    {item.status !== "COMPLETED" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleMarkComplete(item.id, item.queueNumber)}
-                        loading={completingId === item.id}
-                        className="text-xs"
-                      >
-                        <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
-                        Mark Complete
-                      </Button>
-                    )}
-                  </div>
+                  {/* Only Delete Note Button */}
+                  <button
+                    type="button"
+                    disabled={deletingId === item.id}
+                    onClick={() => handleDeleteNote(item.id, item.queueNumber, item.brandName)}
+                    title={`Delete note for #${item.queueNumber}`}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
 
                 <div className="mt-3 rounded-2xl border border-amber-200/80 bg-amber-50/70 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">

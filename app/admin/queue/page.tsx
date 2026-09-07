@@ -355,7 +355,34 @@ export default function AdminQueuePage() {
                 </p>
               </div>
 
-              <div className="mt-5 flex justify-end">
+              <div className="mt-5 flex items-center justify-between">
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={async () => {
+                    if (
+                      confirm(
+                        `Delete note for #${selectedNoteTicket.queueNumber} (${selectedNoteTicket.brandName})?`
+                      )
+                    ) {
+                      const { ok, data } = await fetchApi<{ error?: string }>(
+                        `/api/admin/feedback?ticketId=${selectedNoteTicket.id}`,
+                        { method: "DELETE" }
+                      );
+                      if (ok) {
+                        toast.success(`Deleted note for #${selectedNoteTicket.queueNumber}`);
+                        setSelectedNoteTicket(null);
+                        loadQueue(activeEntranceRef.current);
+                      } else {
+                        toast.error(data.error ?? "Failed to delete note");
+                      }
+                    }
+                  }}
+                  className="gap-1.5"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete Note
+                </Button>
                 <Button onClick={() => setSelectedNoteTicket(null)}>
                   Close
                 </Button>

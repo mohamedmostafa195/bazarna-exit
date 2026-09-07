@@ -13,7 +13,7 @@ import {
   getEntranceLabel,
   type EntranceType,
 } from "@/lib/entrance";
-import { Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
 
 interface EventZone {
   id?: string;
@@ -114,6 +114,35 @@ export default function SettingsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ entranceType: type }),
     });
+  }
+
+  function handleSelectEdit(event: Event) {
+    setEditingId(event.id);
+    setEntrance(event.entranceType as EntranceType);
+    setForm({
+      eventName: event.eventName,
+      eventDate: toDateInputValue(event.eventDate),
+      queueOpenTime: toTimeInputValue(new Date(event.queueOpenTime)),
+      queueCloseTime: toTimeInputValue(new Date(event.queueCloseTime)),
+    });
+    setZones(
+      event.zones && event.zones.length > 0
+        ? event.zones.map((z) => ({ name: z.name, limit: z.limit }))
+        : [{ name: "A", limit: 50 }]
+    );
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    toast.info(`Editing "${event.eventName}"`);
+  }
+
+  function handleCancelEdit() {
+    setEditingId(null);
+    setForm({
+      eventName: "",
+      eventDate: toDateInputValue(new Date().toISOString()),
+      queueOpenTime: "21:00",
+      queueCloseTime: "23:00",
+    });
+    setZones([{ name: "A", limit: 50 }]);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -258,6 +287,8 @@ export default function SettingsPage() {
     );
   }
 
+  const editingEvent = events.find((e) => e.id === editingId);
+
   return (
     <AppShell>
       <div className="mx-auto max-w-2xl px-4 py-8">
@@ -269,7 +300,13 @@ export default function SettingsPage() {
           className="mb-6"
         />
 
-        <Card title={`${getEntranceLabel(entrance)} Queue Time Window & Zones`}>
+        <Card
+          title={
+            editingId
+              ? `Edit Event: ${editingEvent?.eventName ?? "Event"}`
+              : `${getEntranceLabel(entrance)} Queue Time Window & Zones`
+          }
+        >
           <form onSubmit={handleSubmit} className="space-y-5">
             <Input
               label="Event Name"
@@ -402,9 +439,21 @@ export default function SettingsPage() {
                 on {formatDateOnlyDisplay(form.eventDate + "T12:00:00")}
               </p>
             )}
-            <Button type="submit" loading={saving}>
-              {editingId ? "Update Event" : "Create Event"}
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button type="submit" loading={saving}>
+                {editingId ? "Update Event" : "Create Event"}
+              </Button>
+              {editingId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCancelEdit}
+                  className="gap-1.5"
+                >
+                  <X className="h-4 w-4" /> New Event Mode
+                </Button>
+              )}
+            </div>
           </form>
         </Card>
 
@@ -433,58 +482,84 @@ export default function SettingsPage() {
             </div>
 
             <div className="space-y-3">
-              {events.map((event) => (
-                <div
-                  key={event.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 p-3 transition-colors hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate font-medium text-zinc-900 dark:text-zinc-100">
-                        {event.eventName}
-                      </p>
-                      <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-                        {getEntranceLabel(event.entranceType as EntranceType)}
-                      </span>
-                      {event.isActive && (
-                        <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                          Active
+              {events.map((event) => {
+                const isCurrentEditing = editingId === event.id;
+                return (
+                  <div
+                    key={event.id}
+                    className={`flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors ${
+                      isCurrentEditing
+                        ? "border-orange-500/60 bg-orange-50/10 ring-1 ring-orange-500/40"
+                        : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600"
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate font-medium text-zinc-900 dark:text-zinc-100">
+                          {event.eventName}
+                        </p>
+                        <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                          {getEntranceLabel(event.entranceType as EntranceType)}
                         </span>
+                        {event.isActive && (
+                          <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                            Active
+                          </span>
+                        )}
+                        {isCurrentEditing && (
+                          <span className="shrink-0 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                            Editing
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-sm text-zinc-500">
+                        {formatDateOnlyDisplay(event.eventDate)} ·{" "}
+                        {formatTime(new Date(event.queueOpenTime))} –{" "}
+                        {formatTime(new Date(event.queueCloseTime))}
+                      </p>
+                      {event.zones && event.zones.length > 0 && (
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          <span className="text-xs font-medium text-zinc-500">Zones:</span>
+                          {event.zones.map((z) => (
+                            <span
+                              key={z.name}
+                              className="inline-flex items-center rounded-md bg-orange-50 px-2 py-0.5 text-xs font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-300"
+                            >
+                              Zone {z.name.toUpperCase()} (1–{z.limit})
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
-                    <p className="mt-0.5 text-sm text-zinc-500">
-                      {formatDateOnlyDisplay(event.eventDate)} ·{" "}
-                      {formatTime(new Date(event.queueOpenTime))} –{" "}
-                      {formatTime(new Date(event.queueCloseTime))}
-                    </p>
-                    {event.zones && event.zones.length > 0 && (
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        <span className="text-xs font-medium text-zinc-500">Zones:</span>
-                        {event.zones.map((z) => (
-                          <span
-                            key={z.name}
-                            className="inline-flex items-center rounded-md bg-orange-50 px-2 py-0.5 text-xs font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-300"
-                          >
-                            Zone {z.name.toUpperCase()} (1–{z.limit})
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
 
-                  <button
-                    type="button"
-                    disabled={deletingId === event.id || clearingEvents}
-                    onClick={() =>
-                      deleteEvent(event.id, event.eventName, event.isActive)
-                    }
-                    title={`Delete "${event.eventName}"`}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:hover:bg-red-950/40 dark:hover:text-red-400"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectEdit(event)}
+                        title={`Edit "${event.eventName}"`}
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                          isCurrentEditing
+                            ? "bg-orange-100 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400"
+                            : "text-zinc-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/40 dark:hover:text-orange-400"
+                        }`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={deletingId === event.id || clearingEvents}
+                        onClick={() =>
+                          deleteEvent(event.id, event.eventName, event.isActive)
+                        }
+                        title={`Delete "${event.eventName}"`}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </Card>
         )}
