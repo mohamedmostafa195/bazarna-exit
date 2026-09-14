@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageSquareText, Send, Check } from "lucide-react";
+import { MessageSquareText, Send, Check, Phone } from "lucide-react";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/fetch-api";
 
@@ -119,6 +119,20 @@ export function ExitNoteCard({
             </>
           )}
         </button>
+      </div>
+
+      {/* Help / Support Contact */}
+      <div className="mt-4 border-t border-zinc-200/60 pt-3 text-center dark:border-zinc-800/70">
+        <p className="text-xs text-zinc-400 dark:text-zinc-500">
+          Facing any issues or need help?{" "}
+          <a
+            href="tel:01000774213"
+            className="inline-flex items-center gap-1 font-semibold text-orange-500 transition hover:text-orange-600 hover:underline active:scale-95 dark:text-orange-400"
+          >
+            <Phone className="h-3 w-3 shrink-0" />
+            01000774213
+          </a>
+        </p>
       </div>
     </div>
   );

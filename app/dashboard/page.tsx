@@ -477,6 +477,18 @@ export default function DashboardPage() {
                       : "Get My Exit Number"
                     }
                   </button>
+
+                  {/* Help / Support contact */}
+                  <div className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-zinc-400 dark:text-zinc-500">
+                    <span>Having issues or need help?</span>
+                    <a
+                      href="tel:01000774213"
+                      className="inline-flex items-center gap-1 font-semibold text-orange-500 transition hover:text-orange-600 hover:underline active:scale-95 dark:text-orange-400"
+                    >
+                      <Phone className="h-3 w-3 shrink-0" />
+                      <span>01000774213</span>
+                    </a>
+                  </div>
                 </div>
               );
             })()}
