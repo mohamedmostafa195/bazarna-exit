@@ -305,7 +305,15 @@ export default function DashboardPage() {
         ════════════════════════════════════════ */}
         {data && !data.event && !loading && !data.ticket && (
           <Card>
-            <EmptyState emoji="🕐" title="No active event" sub="The admin will open the queue soon." />
+            <EmptyState emoji="🕐" title="No active event" sub="The admin will open the queue soon.">
+              <a
+                href="tel:01000774213"
+                className="mt-2 inline-flex items-center gap-2 rounded-2xl border border-orange-200 bg-orange-50/80 px-4 py-2.5 text-sm font-semibold text-orange-600 shadow-sm transition hover:bg-orange-100/80 active:scale-95 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-400 dark:hover:bg-orange-950/50"
+              >
+                <Phone className="h-4 w-4 shrink-0 text-orange-500" />
+                <span>01000774213</span>
+              </a>
+            </EmptyState>
           </Card>
         )}
 
