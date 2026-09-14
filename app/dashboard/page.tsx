@@ -16,7 +16,7 @@ import {
   isEntranceType,
 } from "@/lib/entrance";
 import { hasUsableQueueCache, readQueueCache, writeQueueCache } from "@/lib/queue-cache";
-import { CheckCircle2, AlertCircle, Clock, ArrowLeft } from "lucide-react";
+import { CheckCircle2, AlertCircle, Clock, ArrowLeft, Phone } from "lucide-react";
 import { BoothNumberPicker } from "@/components/booth-number-picker";
 import { DashboardBanner } from "@/components/dashboard-banner";
 import { ExitNoteCard } from "@/components/exit-note-card";
@@ -483,7 +483,15 @@ export default function DashboardPage() {
 
             {/* ── CLOSED ── */}
             {data.windowState === "closed" && (
-              <EmptyState emoji="🔒" title="Queue is closed" sub="Contact the Bazarna team for help." />
+              <EmptyState emoji="🔒" title="Queue is closed" sub="Contact the Bazarna team for help.">
+                <a
+                  href="tel:01000774213"
+                  className="mt-2 inline-flex items-center gap-2 rounded-2xl border border-orange-200 bg-orange-50/80 px-4 py-2.5 text-sm font-semibold text-orange-600 shadow-sm transition hover:bg-orange-100/80 active:scale-95 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-400 dark:hover:bg-orange-950/50"
+                >
+                  <Phone className="h-4 w-4 shrink-0 text-orange-500" />
+                  <span>01000774213</span>
+                </a>
+              </EmptyState>
             )}
           </Card>
         )}
@@ -602,7 +610,17 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
   );
 }
 
-function EmptyState({ emoji, title, sub }: { emoji: string; title: string; sub: string }) {
+function EmptyState({
+  emoji,
+  title,
+  sub,
+  children,
+}: {
+  emoji: string;
+  title: string;
+  sub: string;
+  children?: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col items-center gap-3 py-8 text-center">
       <span className="text-5xl leading-none">{emoji}</span>
@@ -610,6 +628,7 @@ function EmptyState({ emoji, title, sub }: { emoji: string; title: string; sub: 
         <p className="font-extrabold text-zinc-800 dark:text-zinc-200">{title}</p>
         <p className="mt-0.5 text-sm text-zinc-400">{sub}</p>
       </div>
+      {children}
     </div>
   );
 }
