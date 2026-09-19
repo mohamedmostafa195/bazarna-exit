@@ -6,25 +6,7 @@ import { getEntranceLabel, isEntranceType } from "@/lib/entrance";
 
 type TicketStatus = "WAITING" | "CALLED" | "COMPLETED";
 
-/** Remove old completed tickets when nobody is waiting — so the next number is #1. */
-async function clearStaleTicketsIfQueueEmpty(
-  tx: Prisma.TransactionClient,
-  eventId: string
-) {
-  const activeCount = await tx.queueTicket.count({
-    where: { eventId, status: { in: ["WAITING", "CALLED"] } },
-  });
-  if (activeCount > 0) return;
 
-  const staleCount = await tx.queueTicket.count({ where: { eventId } });
-  if (staleCount === 0) return;
-
-  await tx.queueTicket.deleteMany({ where: { eventId } });
-  await tx.event.update({
-    where: { id: eventId },
-    data: { currentServingNumber: null, nextQueueNumber: 1 },
-  });
-}
 
 export async function getActiveEvent(entranceType?: string | null) {
   return prisma.event.findFirst({
@@ -224,9 +206,6 @@ export async function requestQueueNumber(
               };
             }
           }
-
-          // Drop finished test/old tickets so Bazarna & Byouth each start at #1.
-          await clearStaleTicketsIfQueueEmpty(tx, eventId);
 
           const { _max } = await tx.queueTicket.aggregate({
             where: { eventId },

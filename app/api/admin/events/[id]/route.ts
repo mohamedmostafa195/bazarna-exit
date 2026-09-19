@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { adminRoute } from "@/lib/admin-route";
 import { prisma } from "@/lib/prisma";
-import { parseDateOnlyToDb, toDateInputValue } from "@/lib/datetime";
+import { parseDateOnlyToDb } from "@/lib/datetime";
 import { eventSettingsSchema } from "@/lib/validations";
 import { parseJsonBody, withApiHandler } from "@/lib/api-error";
 import { deactivateSiblingEvents } from "@/lib/event-admin";
-import { resetQueue } from "@/lib/queue";
 import { logAction } from "@/lib/action-log";
 
 export const PATCH = adminRoute(async (request, ctx) => {
@@ -67,12 +66,6 @@ export const PATCH = adminRoute(async (request, ctx) => {
       },
       include: { zones: { orderBy: { name: "asc" } } },
     });
-
-    const dateChanged =
-      toDateInputValue(existing.eventDate) !== toDateInputValue(eventDate);
-    if (dateChanged && existing.isActive) {
-      await resetQueue(event.id);
-    }
 
     if (existing.isActive) {
       await deactivateSiblingEvents(parsed.data.entranceType, event.id);
