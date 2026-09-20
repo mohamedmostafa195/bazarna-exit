@@ -12,6 +12,9 @@ import {
 } from "@/lib/event-lifecycle";
 import { normalizeBoothCode } from "@/lib/booth-validation";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function resolveEntranceFromRequest(
   request: Request,
   sessionEntrance?: string | null
@@ -59,6 +62,7 @@ export async function GET(request: Request) {
         eventDayPassed: false,
         queueEndedToday: false,
         user,
+        boothBrands: {},
       });
     }
 
@@ -68,6 +72,19 @@ export async function GET(request: Request) {
     );
     const eventDayPassed = isEventDayPassed(event.eventDate);
     const queueEndedToday = windowState === "closed" && !eventDayPassed;
+
+    // Fetch booth-brand mappings for this event
+    const boothBrandRows = await prisma.$queryRawUnsafe<
+      { booth_code: string; brand_name: string }[]
+    >(
+      `SELECT booth_code, brand_name FROM event_booth_brands WHERE event_id = $1`,
+      event.id
+    ).catch(() => []);
+
+    const boothBrands: Record<string, string> = {};
+    for (const row of boothBrandRows) {
+      boothBrands[row.booth_code] = row.brand_name;
+    }
 
     const ticket = await prisma.queueTicket.findUnique({
       where: {
@@ -95,6 +112,7 @@ export async function GET(request: Request) {
         ticket,
         otherEntranceTicket: null,
         occupiedBooths: [],
+        boothBrands,
         entranceType,
         entranceLabel: entranceType ? getEntranceLabel(entranceType) : null,
         eventDayPassed,
@@ -159,6 +177,7 @@ export async function GET(request: Request) {
       ticket: null,
       otherEntranceTicket,
       occupiedBooths,
+      boothBrands,
       entranceType,
       entranceLabel: entranceType ? getEntranceLabel(entranceType) : null,
       eventDayPassed,

@@ -13,6 +13,7 @@ export const ACTION_TYPES = [
   "PASSWORD_RESET_COMPLETED",
   "NOTE_SUBMITTED",
   "NOTE_DELETED",
+  "TICKET_EDIT",
 ] as const;
 
 export type ActionType = (typeof ACTION_TYPES)[number];
@@ -39,6 +40,7 @@ const ACTION_LABELS: Record<ActionType, string> = {
   PASSWORD_RESET_COMPLETED: "Password reset completed",
   NOTE_SUBMITTED: "Note / Feedback submitted",
   NOTE_DELETED: "Note deleted / cleared",
+  TICKET_EDIT: "Ticket updated",
 };
 
 export const ACTION_DESCRIPTIONS: Record<ActionType, string> = {
@@ -53,6 +55,7 @@ export const ACTION_DESCRIPTIONS: Record<ActionType, string> = {
   PASSWORD_RESET_COMPLETED: "A brand successfully reset their password",
   NOTE_SUBMITTED: "A brand submitted a note or feedback",
   NOTE_DELETED: "Admin deleted or cleared a brand note",
+  TICKET_EDIT: "Admin updated brand name or booth number",
 };
 
 const ACTION_COLORS: Record<ActionType, string> = {
@@ -67,6 +70,7 @@ const ACTION_COLORS: Record<ActionType, string> = {
   PASSWORD_RESET_COMPLETED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
   NOTE_SUBMITTED: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
   NOTE_DELETED: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300",
+  TICKET_EDIT: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300",
 };
 
 export function getActionLabel(action: string): string {

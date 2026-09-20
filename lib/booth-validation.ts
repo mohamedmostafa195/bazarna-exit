@@ -1,6 +1,7 @@
 export interface ZoneConfig {
   name: string;
   limit: number;
+  mapUrl?: string | null;
 }
 
 export interface BoothParseResult {

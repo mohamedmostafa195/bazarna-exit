@@ -7,13 +7,28 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/fetch-api";
-import { combineDateAndTime, formatDateOnlyDisplay, formatQueueWindow, formatTime, toDateInputValue, toTimeInputValue } from "@/lib/utils";
-import { EntranceTabs } from "@/components/entrance-tabs";
 import {
-  getEntranceLabel,
-  type EntranceType,
-} from "@/lib/entrance";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+  combineDateAndTime,
+  formatDateOnlyDisplay,
+  formatQueueWindow,
+  formatTime,
+  toDateInputValue,
+  toTimeInputValue,
+} from "@/lib/utils";
+import { EntranceTabs } from "@/components/entrance-tabs";
+import { getEntranceLabel, type EntranceType } from "@/lib/entrance";
+import {
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+  FileSpreadsheet,
+  Upload,
+  Link2,
+  CheckCircle2,
+  Search,
+  ExternalLink,
+} from "lucide-react";
 
 interface EventZone {
   id?: string;
@@ -32,6 +47,12 @@ interface Event {
   zones?: EventZone[];
 }
 
+interface BoothBrandItem {
+  id: string;
+  boothCode: string;
+  brandName: string;
+}
+
 export default function SettingsPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,9 +67,37 @@ export default function SettingsPage() {
     queueCloseTime: "23:00",
   });
   const [zones, setZones] = useState<Array<{ name: string; limit: number }>>([
-    { name: "A", limit: 50 },
+    { name: "A", limit: 21 },
+    { name: "B", limit: 31 },
+    { name: "C", limit: 29 },
+    { name: "M", limit: 18 },
+    { name: "D", limit: 17 },
+    { name: "Y", limit: 45 },
   ]);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Booth Brands State
+  const [boothBrands, setBoothBrands] = useState<BoothBrandItem[]>([]);
+  const [loadingBrands, setLoadingBrands] = useState(false);
+  const [sheetUrl, setSheetUrl] = useState("");
+  const [importingSheet, setImportingSheet] = useState(false);
+  const [brandSearch, setBrandSearch] = useState("");
+  const [brandZoneFilter, setBrandZoneFilter] = useState("ALL");
+
+  const loadBoothBrands = useCallback(async (eventId: string) => {
+    setLoadingBrands(true);
+    const { ok, data } = await fetchApi<{
+      items?: BoothBrandItem[];
+      total?: number;
+      error?: string;
+    }>(`/api/admin/events/${eventId}/booth-brands`);
+    setLoadingBrands(false);
+    if (ok && data.items) {
+      setBoothBrands(data.items);
+    } else {
+      setBoothBrands([]);
+    }
+  }, []);
 
   const loadFormForEntrance = useCallback(
     (allEvents: Event[], type: EntranceType) => {
@@ -66,8 +115,16 @@ export default function SettingsPage() {
         setZones(
           active.zones && active.zones.length > 0
             ? active.zones.map((z) => ({ name: z.name, limit: z.limit }))
-            : [{ name: "A", limit: 50 }]
+            : [
+                { name: "A", limit: 21 },
+                { name: "B", limit: 31 },
+                { name: "C", limit: 29 },
+                { name: "M", limit: 18 },
+                { name: "D", limit: 17 },
+                { name: "Y", limit: 45 },
+              ]
         );
+        loadBoothBrands(active.id);
       } else {
         setEditingId(null);
         setForm({
@@ -76,10 +133,18 @@ export default function SettingsPage() {
           queueOpenTime: "21:00",
           queueCloseTime: "23:00",
         });
-        setZones([{ name: "A", limit: 50 }]);
+        setZones([
+          { name: "A", limit: 21 },
+          { name: "B", limit: 31 },
+          { name: "C", limit: 29 },
+          { name: "M", limit: 18 },
+          { name: "D", limit: 17 },
+          { name: "Y", limit: 45 },
+        ]);
+        setBoothBrands([]);
       }
     },
-    []
+    [loadBoothBrands]
   );
 
   const fetchEvents = useCallback(async () => {
@@ -130,6 +195,7 @@ export default function SettingsPage() {
         ? event.zones.map((z) => ({ name: z.name, limit: z.limit }))
         : [{ name: "A", limit: 50 }]
     );
+    loadBoothBrands(event.id);
     window.scrollTo({ top: 0, behavior: "smooth" });
     toast.info(`Editing "${event.eventName}"`);
   }
@@ -142,7 +208,15 @@ export default function SettingsPage() {
       queueOpenTime: "21:00",
       queueCloseTime: "23:00",
     });
-    setZones([{ name: "A", limit: 50 }]);
+    setZones([
+      { name: "A", limit: 21 },
+      { name: "B", limit: 31 },
+      { name: "C", limit: 29 },
+      { name: "M", limit: 18 },
+      { name: "D", limit: 17 },
+      { name: "Y", limit: 45 },
+    ]);
+    setBoothBrands([]);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -190,8 +264,93 @@ export default function SettingsPage() {
     const allEvents = await fetchEvents();
     setEvents(allEvents);
     const savedId = editingId ?? data.event?.id;
-    if (savedId) setEditingId(savedId);
+    if (savedId) {
+      setEditingId(savedId);
+      loadBoothBrands(savedId);
+    }
     loadFormForEntrance(allEvents, entrance);
+  }
+
+  async function handleImportSheet(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    if (!editingId) {
+      toast.error("Please save the event first before importing booth sheet");
+      return;
+    }
+    if (!sheetUrl.trim()) {
+      toast.error("Please enter a Google Sheets URL or public CSV link");
+      return;
+    }
+
+    setImportingSheet(true);
+    const { ok, data } = await fetchApi<{
+      message?: string;
+      totalSaved?: number;
+      error?: string;
+    }>(`/api/admin/events/${editingId}/booth-brands`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sheetUrl: sheetUrl.trim() }),
+    });
+    setImportingSheet(false);
+
+    if (!ok) {
+      toast.error(data.error ?? "Failed to import sheet");
+      return;
+    }
+
+    toast.success(data.message ?? `Imported ${data.totalSaved} booth mappings!`);
+    setSheetUrl("");
+    loadBoothBrands(editingId);
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !editingId) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setImportingSheet(true);
+    try {
+      const res = await fetch(`/api/admin/events/${editingId}/booth-brands`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      setImportingSheet(false);
+
+      if (!res.ok) {
+        toast.error(data.error ?? "Upload failed");
+        return;
+      }
+
+      toast.success(data.message ?? `Imported ${data.totalSaved} booth mappings!`);
+      loadBoothBrands(editingId);
+    } catch {
+      setImportingSheet(false);
+      toast.error("Failed to upload file");
+    } finally {
+      e.target.value = "";
+    }
+  }
+
+  async function handleClearBoothBrands() {
+    if (!editingId) return;
+    if (!confirm("Are you sure you want to clear all brand-booth allocations for this event?")) return;
+
+    const { ok, data } = await fetchApi<{ error?: string }>(
+      `/api/admin/events/${editingId}/booth-brands`,
+      { method: "DELETE" }
+    );
+
+    if (!ok) {
+      toast.error(data.error ?? "Failed to clear");
+      return;
+    }
+
+    toast.success("Cleared all booth brands");
+    setBoothBrands([]);
   }
 
   async function deleteEvent(id: string, eventName: string, isActive: boolean) {
@@ -289,6 +448,48 @@ export default function SettingsPage() {
 
   const editingEvent = events.find((e) => e.id === editingId);
 
+  // Filtered booth brands for preview
+  const availableBrandZones = Array.from(
+    new Set(
+      boothBrands
+        .map((b) => {
+          const match = b.boothCode.match(/[A-Za-z]+/);
+          return match ? match[0].toUpperCase() : "";
+        })
+        .filter(Boolean)
+    )
+  ).sort();
+
+  const filteredBoothBrands = boothBrands
+    .filter((item) => {
+      const q = brandSearch.trim().toLowerCase();
+      const zoneMatch = item.boothCode.match(/[A-Za-z]+/);
+      const itemZone = zoneMatch ? zoneMatch[0].toUpperCase() : "";
+
+      if (brandZoneFilter !== "ALL" && itemZone !== brandZoneFilter) {
+        return false;
+      }
+
+      if (!q) return true;
+      return (
+        item.boothCode.toLowerCase().includes(q) ||
+        item.brandName.toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => {
+      const ma = a.boothCode.match(/^(\d+)([A-Za-z]+)$/);
+      const mb = b.boothCode.match(/^(\d+)([A-Za-z]+)$/);
+      if (ma && mb) {
+        const numA = parseInt(ma[1], 10);
+        const zoneA = ma[2].toUpperCase();
+        const numB = parseInt(mb[1], 10);
+        const zoneB = mb[2].toUpperCase();
+        if (zoneA !== zoneB) return zoneA.localeCompare(zoneB);
+        return numA - numB;
+      }
+      return a.boothCode.localeCompare(b.boothCode, undefined, { numeric: true });
+    });
+
   return (
     <AppShell>
       <div className="mx-auto max-w-2xl px-4 py-8">
@@ -350,7 +551,7 @@ export default function SettingsPage() {
                     Event Zones & Booth Limits
                   </h3>
                   <p className="text-xs text-zinc-500">
-                    Set zone letters and maximum number limits (e.g. Zone A limit 50 means 1A–50A are allowed).
+                    Set zone letters and maximum number limits (e.g. Zone Y limit 45 means 1Y–45Y).
                   </p>
                 </div>
                 <Button
@@ -381,7 +582,7 @@ export default function SettingsPage() {
                         </label>
                         <Input
                           value={zone.name}
-                          placeholder="e.g. A, B, C"
+                          placeholder="e.g. A, B, C, Y"
                           onChange={(e) => {
                             const updated = [...zones];
                             updated[idx].name = e.target.value;
@@ -399,7 +600,7 @@ export default function SettingsPage() {
                           type="number"
                           min={1}
                           value={zone.limit || ""}
-                          placeholder="e.g. 50"
+                          placeholder="e.g. 45"
                           onChange={(e) => {
                             const updated = [...zones];
                             updated[idx].limit = parseInt(e.target.value, 10) || 0;
@@ -456,6 +657,169 @@ export default function SettingsPage() {
             </div>
           </form>
         </Card>
+
+        {/* ═════════════════════════════════════════════════════ */}
+        {/* BRAND BOOTH SHEET ALLOCATION IMPORTER                */}
+        {/* ═════════════════════════════════════════════════════ */}
+        {editingId && (
+          <Card className="mt-6" title="📊 Brand Booth Allocations">
+            <div className="space-y-4">
+              <p className="text-xs text-zinc-500">
+                Upload an Excel / CSV sheet or paste a Google Sheets link to map brand names to booth numbers (e.g. <code>1Y ↔ Freyya</code>).
+              </p>
+
+              {/* Import Options */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {/* 1. Google Sheets Import */}
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                    <Link2 className="h-3.5 w-3.5 text-orange-500" />
+                    <span>Google Sheet Link:</span>
+                  </label>
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      type="url"
+                      value={sheetUrl}
+                      onChange={(e) => setSheetUrl(e.target.value)}
+                      placeholder="https://docs.google.com/spreadsheets/d/..."
+                      className="h-9 flex-1 rounded-lg border border-zinc-300 bg-white px-2.5 text-xs text-zinc-900 outline-none focus:border-orange-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      loading={importingSheet}
+                      onClick={() => handleImportSheet()}
+                      className="h-9 px-3 text-xs"
+                    >
+                      Import
+                    </Button>
+                  </div>
+                </div>
+
+                {/* 2. File Upload */}
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                    <Upload className="h-3.5 w-3.5 text-orange-500" />
+                    <span>Upload Excel File (.xlsx, .csv):</span>
+                  </label>
+                  <div className="mt-2">
+                    <label className="flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 hover:border-orange-500 hover:text-orange-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                      <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+                      <span>Choose file from device</span>
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls,.csv"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status & Preview Table */}
+              <div className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 pb-2.5 dark:border-zinc-800">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                      Mapped Booths: {boothBrands.length} booths
+                    </span>
+                  </div>
+
+                  {boothBrands.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearBoothBrands}
+                      className="text-[11px] font-semibold text-red-500 hover:underline"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+
+                {loadingBrands ? (
+                  <p className="py-4 text-center text-xs text-zinc-400">Loading booths...</p>
+                ) : boothBrands.length === 0 ? (
+                  <p className="py-4 text-center text-xs text-zinc-400">
+                    No sheet uploaded for this event yet.
+                  </p>
+                ) : (
+                  <div className="mt-2 space-y-2.5">
+                    {/* Zone Tabs & Search Filter */}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex gap-1 overflow-x-auto scrollbar-none">
+                        <button
+                          type="button"
+                          onClick={() => setBrandZoneFilter("ALL")}
+                          className={`rounded-md px-2 py-1 text-[11px] font-bold transition ${
+                            brandZoneFilter === "ALL"
+                              ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                              : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300"
+                          }`}
+                        >
+                          All ({boothBrands.length})
+                        </button>
+                        {availableBrandZones.map((z) => {
+                          const count = boothBrands.filter((b) => b.boothCode.endsWith(z)).length;
+                          return (
+                            <button
+                              key={z}
+                              type="button"
+                              onClick={() => setBrandZoneFilter(z)}
+                              className={`rounded-md px-2 py-1 text-[11px] font-bold transition ${
+                                brandZoneFilter === z
+                                  ? "bg-orange-500 text-white"
+                                  : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300"
+                              }`}
+                            >
+                              Zone {z} ({count})
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="relative flex items-center">
+                        <Search className="absolute left-2 h-3 w-3 text-zinc-400" />
+                        <input
+                          type="text"
+                          value={brandSearch}
+                          onChange={(e) => setBrandSearch(e.target.value)}
+                          placeholder="Search brand..."
+                          className="h-7 w-36 rounded-md bg-zinc-100 pl-6 pr-2 text-xs text-zinc-800 outline-none focus:bg-white focus:ring-1 focus:ring-orange-500 dark:bg-zinc-800 dark:text-zinc-100"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Preview Table */}
+                    <div className="max-h-48 overflow-y-auto rounded-lg border border-zinc-100 dark:border-zinc-800">
+                      <table className="w-full text-left text-xs">
+                        <thead className="sticky top-0 bg-zinc-50 text-[10px] font-extrabold uppercase text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                          <tr>
+                            <th className="px-3 py-1.5">Booth</th>
+                            <th className="px-3 py-1.5">Brand Name</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                          {filteredBoothBrands.slice(0, 100).map((item) => (
+                            <tr key={item.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                              <td className="px-3 py-1.5 font-black text-zinc-900 dark:text-zinc-100">
+                                {item.boothCode}
+                              </td>
+                              <td className="px-3 py-1.5 font-medium text-zinc-700 dark:text-zinc-300">
+                                {item.brandName}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+        )}
 
         {events.length > 0 && (
           <Card className="mt-6">

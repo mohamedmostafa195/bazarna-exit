@@ -56,6 +56,7 @@ interface QueueData {
     eventName: string;
   } | null;
   occupiedBooths?: string[];
+  boothBrands?: Record<string, string>;
   entranceType?: "BAZARNA" | "BYOUTH";
   entranceLabel?: string;
   eventDayPassed?: boolean;
@@ -67,8 +68,6 @@ interface QueueData {
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  // Always start the same on server + first client paint to avoid hydration mismatch.
-  // Cache is applied in useEffect after mount.
   const [data, setData] = useState<QueueData | null>(null);
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
@@ -108,7 +107,6 @@ export default function DashboardPage() {
   useEffect(() => {
     startTransition(() => setOrigin(window.location.origin));
 
-    // Apply cache after mount (client-only) so SSR HTML matches.
     const cached = readQueueCache<QueueData>();
     if (hasUsableQueueCache(cached)) {
       startTransition(() => {
@@ -138,7 +136,7 @@ export default function DashboardPage() {
   /* clear occupied ----------------------------------------- */
   useEffect(() => {
     if (!selectedZone || !selectedNumber) return;
-    const occ = (data?.occupiedBooths ?? []).map(b => normalizeBoothCode(b)).filter((b): b is string => !!b);
+    const occ = (data?.occupiedBooths ?? []).map((b) => normalizeBoothCode(b)).filter((b): b is string => !!b);
     const code = normalizeBoothCode(`${selectedNumber}${selectedZone}`);
     if (code && occ.includes(code)) {
       startTransition(() => setSelectedNumber(""));
@@ -164,30 +162,30 @@ export default function DashboardPage() {
           };
         }
 
-      const fromPoll = Array.isArray(lastUpdate.occupiedBooths)
-        ? (lastUpdate.occupiedBooths as string[])
-            .map((b) => normalizeBoothCode(b))
-            .filter((b): b is string => !!b)
-        : [];
-      const fromTickets = Array.isArray(lastUpdate.tickets)
-        ? (lastUpdate.tickets as { boothNumber?: string }[])
-            .map((t) => normalizeBoothCode(t.boothNumber))
-            .filter((b): b is string => !!b)
-        : [];
-      const occupied = fromPoll.length > 0 ? fromPoll : fromTickets;
+        const fromPoll = Array.isArray(lastUpdate.occupiedBooths)
+          ? (lastUpdate.occupiedBooths as string[])
+              .map((b) => normalizeBoothCode(b))
+              .filter((b): b is string => !!b)
+          : [];
+        const fromTickets = Array.isArray(lastUpdate.tickets)
+          ? (lastUpdate.tickets as { boothNumber?: string }[])
+              .map((t) => normalizeBoothCode(t.boothNumber))
+              .filter((b): b is string => !!b)
+          : [];
+        const occupied = fromPoll.length > 0 ? fromPoll : fromTickets;
 
-      if (!prev.ticket && occupied.length > 0) {
-        next = { ...next, occupiedBooths: [...new Set(occupied)] };
-      }
-
-      if (prev.ticket) {
-        const up = (
-          lastUpdate.tickets as { queueNumber: number; status: string }[]
-        ).find((t) => t.queueNumber === prev.ticket!.queueNumber);
-        if (up && up.status !== prev.ticket.status) {
-          next = { ...next, ticket: { ...prev.ticket, status: up.status } };
+        if (!prev.ticket && occupied.length > 0) {
+          next = { ...next, occupiedBooths: [...new Set(occupied)] };
         }
-      }
+
+        if (prev.ticket) {
+          const up = (
+            lastUpdate.tickets as { queueNumber: number; status: string }[]
+          ).find((t) => t.queueNumber === prev.ticket!.queueNumber);
+          if (up && up.status !== prev.ticket.status) {
+            next = { ...next, ticket: { ...prev.ticket, status: up.status } };
+          }
+        }
 
         return next;
       });
@@ -205,7 +203,7 @@ export default function DashboardPage() {
   }, []);
 
   /* derived ------------------------------------------------ */
-  const openTime  = data?.event ? new Date(data.event.queueOpenTime)  : null;
+  const openTime = data?.event ? new Date(data.event.queueOpenTime) : null;
   const countdown = useCountdown(data?.windowState === "before" ? openTime : null);
   const brandName = data?.user?.brandName ?? session?.user?.brandName ?? "Brand";
 
@@ -213,32 +211,45 @@ export default function DashboardPage() {
     data?.entranceType && isEntranceType(data.entranceType)
       ? data.entranceType
       : session?.user?.entranceType && isEntranceType(session.user.entranceType)
-        ? session.user.entranceType
-        : cookieEntrance
-          ? cookieEntrance
-          : data?.entranceLabel === "Byouth"
-            ? "BYOUTH"
-            : data?.entranceLabel === "Bazarna"
-              ? "BAZARNA"
-              : null;
+      ? session.user.entranceType
+      : cookieEntrance
+      ? cookieEntrance
+      : data?.entranceLabel === "Byouth"
+      ? "BYOUTH"
+      : data?.entranceLabel === "Bazarna"
+      ? "BAZARNA"
+      : null;
 
   const eventZones = resolveEventZones(data?.event?.zones, currentEntrance ?? data?.entranceType);
 
-
   /* actions ------------------------------------------------ */
   async function handleRequestNumber() {
-    if (!selectedZone || !selectedNumber) { toast.error("Pick your zone and booth first"); return; }
+    if (!selectedZone || !selectedNumber) {
+      toast.error("Pick your zone and booth first");
+      return;
+    }
     const booth = `${selectedNumber}${selectedZone}`;
     const check = validateBoothAgainstZones(booth, eventZones);
-    if (!check.valid) { toast.error(check.error ?? "Invalid booth"); return; }
+    if (!check.valid) {
+      toast.error(check.error ?? "Invalid booth");
+      return;
+    }
     if (requesting) return;
     setRequesting(true);
     const { ok, data: r } = await fetchApi<{ error?: string; ticket?: { queueNumber: number } }>(
       "/api/queue/request",
-      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ boothNumber: booth }) }
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ boothNumber: booth }),
+      }
     );
     setRequesting(false);
-    if (!ok) { toast.error(r.error ?? "Failed"); fetchStatus(); return; }
+    if (!ok) {
+      toast.error(r.error ?? "Failed");
+      fetchStatus();
+      return;
+    }
     toast.success(`You got exit #${r.ticket!.queueNumber}!`);
     fetchStatus();
   }
@@ -266,244 +277,46 @@ export default function DashboardPage() {
           </button>
         }
       >
-      <div
-        className={
-          currentEntrance
-            ? data?.ticket
-              ? "mx-auto w-full max-w-4xl px-4 pb-0 pt-[300px] sm:px-20 sm:pt-72"
-              : "mx-auto w-full max-w-4xl px-4 pb-16 pt-[300px] sm:px-20 sm:pb-8 sm:pt-72"
-            : "mx-auto w-full max-w-4xl px-4 pb-16 pt-[148px] sm:px-20 sm:pb-8 sm:pt-48"
-        }
-        style={{ opacity: 1, transform: "none" }}
-      >
-        <div className="mb-6 hidden sm:block">
-          <h2 className="text-[28px] font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100">
-            Exit Queue
-          </h2>
-        </div>
+        <div
+          className={
+            currentEntrance
+              ? data?.ticket
+                ? "mx-auto w-full max-w-4xl px-4 pb-0 pt-[300px] sm:px-20 sm:pt-72"
+                : "mx-auto w-full max-w-4xl px-4 pb-16 pt-[300px] sm:px-20 sm:pb-8 sm:pt-72"
+              : "mx-auto w-full max-w-4xl px-4 pb-16 pt-[148px] sm:px-20 sm:pb-8 sm:pt-48"
+          }
+          style={{ opacity: 1, transform: "none" }}
+        >
+          <div className="mb-6 hidden sm:block">
+            <h2 className="text-[28px] font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100">
+              Exit Queue
+            </h2>
+          </div>
 
-        {loading && !hasUsableQueueCache(data) && (
-          <p className="mb-3 text-center text-xs font-medium text-zinc-400">Loading queue…</p>
-        )}
+          {loading && !hasUsableQueueCache(data) && (
+            <p className="mb-3 text-center text-xs font-medium text-zinc-400">Loading queue…</p>
+          )}
 
-        {loading && !hasUsableQueueCache(data) && (
-          <Card>
-            <div className="animate-pulse space-y-5 py-2">
-              <div className="h-4 w-40 rounded bg-zinc-200 dark:bg-zinc-800" />
-              <div className="h-11 w-full rounded-xl bg-zinc-200 dark:bg-zinc-800" />
-              <div className="grid grid-cols-2 gap-4">
-                <div className="h-11 rounded-xl bg-zinc-200 dark:bg-zinc-800" />
-                <div className="h-11 rounded-xl bg-zinc-200 dark:bg-zinc-800" />
-              </div>
-              <div className="h-12 w-full rounded-xl bg-zinc-200 dark:bg-zinc-800" />
-            </div>
-          </Card>
-        )}
-
-        {/* ════════════════════════════════════════
-            STATE: no event
-        ════════════════════════════════════════ */}
-        {data && !data.event && !loading && !data.ticket && (
-          <Card>
-            <EmptyState emoji="🕐" title="No active event" sub="The admin will open the queue soon.">
-              <a
-                href="tel:01000774213"
-                className="mt-2 inline-flex items-center gap-2 rounded-2xl border border-orange-200 bg-orange-50/80 px-4 py-2.5 text-sm font-semibold text-orange-600 shadow-sm transition hover:bg-orange-100/80 active:scale-95 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-400 dark:hover:bg-orange-950/50"
-              >
-                <Phone className="h-4 w-4 shrink-0 text-orange-500" />
-                <span>01000774213</span>
-              </a>
-            </EmptyState>
-          </Card>
-        )}
-
-        {/* ════════════════════════════════════════
-            STATE: event day passed
-        ════════════════════════════════════════ */}
-        {data?.event && data.eventDayPassed && !data.ticket && (
-          <Card>
-            <EmptyState emoji="🔄" title="Event ended" sub="A new queue starts at #1 when the next event opens." />
-          </Card>
-        )}
-
-        {/* ════════════════════════════════════════
-            STATE: ticket in other entrance
-        ════════════════════════════════════════ */}
-        {data?.otherEntranceTicket && !data.ticket && (
-          <Card>
-            <div className="flex flex-col items-center py-2 text-center">
-              <span className="relative h-20 w-20 overflow-hidden rounded-3xl shadow-md">
-                <Image src={getEntranceImage(data.otherEntranceTicket.entranceType)} alt="" fill sizes="80px" className="object-cover" />
-              </span>
-              <p className="mt-5 text-lg font-extrabold text-zinc-900 dark:text-zinc-100">
-                Active Number in {data.otherEntranceTicket.entranceLabel} Exit
-              </p>
-              <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-                You already requested exit number{" "}
-                <span className="text-3xl font-black text-orange-500">#{data.otherEntranceTicket.queueNumber}</span>{" "}
-                in <strong>{data.otherEntranceTicket.entranceLabel} Exit</strong>.
-              </p>
-              <p className="mt-2 text-xs text-zinc-400">
-                Each brand can only join one exit queue at a time.
-              </p>
-              <button
-                type="button"
-                onClick={async () => {
-                  await fetchApi("/api/entrance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ entranceType: data.otherEntranceTicket!.entranceType }) });
-                  window.location.href = "/dashboard";
-                }}
-                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 py-3.5 text-sm font-normal text-white transition hover:bg-orange-600 active:scale-[.98]"
-              >
-                Go to {data.otherEntranceTicket.entranceLabel} Ticket (#{data.otherEntranceTicket.queueNumber}) →
-              </button>
-            </div>
-          </Card>
-        )}
-
-        {/* ════════════════════════════════════════
-            STATE: queue panel (no ticket yet)
-        ════════════════════════════════════════ */}
-        {data?.event && !data.eventDayPassed && !data.ticket && !data.otherEntranceTicket && (
-          <Card>
-
-            {/* ── BEFORE ── */}
-            {data.windowState === "before" && (
-              <div className="flex flex-col items-center gap-4 py-2 text-center">
-                <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-50 dark:bg-orange-950/40">
-                  <Clock className="h-7 w-7 text-orange-500" />
-                </span>
-                <p className="font-bold text-zinc-800 dark:text-zinc-200">Opens at {formatTime(openTime!)}</p>
-                {countdown && countdown.total > 0 && (
-                  <div className="flex gap-2">
-                    {(countdown.total >= 24 * 60 * 60 * 1000
-                      ? [{ l: "days", v: Math.floor(countdown.total / (24 * 60 * 60 * 1000)) }]
-                      : [{ l: "hr", v: countdown.hours }, { l: "min", v: countdown.minutes }, { l: "sec", v: countdown.seconds }]
-                    ).map(({l,v}) => (
-                      <div key={l} className="min-w-[60px] rounded-2xl bg-zinc-100 py-3 text-center dark:bg-zinc-800">
-                        <p className="text-2xl font-black tabular-nums text-zinc-900 dark:text-zinc-100">{String(v).padStart(2,"0")}</p>
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">{l}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <button disabled className="w-full cursor-not-allowed rounded-xl bg-zinc-100 py-3 text-sm font-normal text-zinc-400 dark:bg-zinc-800 dark:text-zinc-600">
-                  Not open yet
-                </button>
-              </div>
-            )}
-
-            {/* ── OPEN ── */}
-            {data.windowState === "open" && (() => {
-              const occ = (data.occupiedBooths ?? []).map(b => normalizeBoothCode(b)).filter((b): b is string => !!b);
-              const zones = eventZones.map(z => {
-                const name = z.name.trim().toUpperCase();
-                let taken = 0;
-                for (let n=1; n<=z.limit; n++) if (occ.includes(`${n}${name}`)) taken++;
-                return { ...z, name, remaining: z.limit - taken, isFull: taken >= z.limit };
-              });
-              const allFull  = zones.length > 0 && zones.every(z => z.isFull);
-              const zoneObj  = zones.find(z => z.name === selectedZone);
-              const zoneFull = Boolean(zoneObj?.isFull);
-              const code     = selectedZone && selectedNumber ? normalizeBoothCode(`${selectedNumber}${selectedZone}`) : "";
-              const isTaken  = Boolean(code && occ.includes(code));
-              const valid    = Boolean(selectedZone && selectedNumber && !isTaken && !zoneFull && !allFull);
-
-              return (
-                <div>
-                  <div className="mb-6">
-                    <p className="truncate text-[16px] font-normal leading-snug text-zinc-900 dark:text-white">
-                      <span className="text-zinc-500 dark:text-zinc-400">Brand name:</span>{" "}
-                      {brandName}
-                    </p>
-                    {data?.user?.boothNumber && data.user.boothNumber !== "—" && data.user.boothNumber !== "N/A" && (
-                      <p className="mt-0.5 truncate text-xs text-zinc-400">
-                        Booth <span className="font-bold text-zinc-600 dark:text-zinc-300">{data.user.boothNumber}</span>
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Entrance chip */}
-                  {currentEntrance && (
-                    <div className="mb-6 flex items-center justify-between border-b border-zinc-200/80 pb-4 dark:border-zinc-700/80">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg">
-                          <Image src={getEntranceImage(currentEntrance)} alt="" fill sizes="32px" className="object-cover" />
-                        </span>
-                        <div className="min-w-0">
-                          <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400">Selected exit</p>
-                          <p className="truncate text-sm font-bold text-zinc-800 dark:text-zinc-100">{data.entranceLabel}</p>
-                        </div>
-                      </div>
-                      <span className="ml-3 flex shrink-0 items-center gap-1.5 text-xs font-bold text-emerald-500">
-                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                        Open
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Zone + Booth */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex flex-col">
-                      <label className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-widest text-zinc-500">Zone</label>
-                      <select
-                        value={selectedZone}
-                        onChange={e => { setSelectedZone(e.target.value); setSelectedNumber(""); }}
-                        className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm font-bold text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-                      >
-                        <option value="">Select</option>
-                        {zones.map(z => (
-                          <option key={z.name} value={z.name} disabled={z.isFull}>
-                            Zone {z.name}{z.isFull ? " (Full)" : ""}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex flex-col">
-                      <label className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-widest text-zinc-500">Your Booth Number</label>
-                      <BoothNumberPicker zone={selectedZone} limit={zoneObj?.limit ?? 0} value={selectedNumber} occupied={occ} disabled={!selectedZone || zoneFull} onChange={setSelectedNumber} />
-                    </div>
-                  </div>
-
-                  {/* Inline validation */}
-                  <div className="mt-4 min-h-[24px]">
-                    {allFull  ? <Msg error>All booths are taken</Msg>
-                    : zoneFull ? <Msg error>Zone {selectedZone} is full</Msg>
-                    : isTaken  ? <Msg error>Booth {selectedNumber}{selectedZone} is taken</Msg>
-                    : selectedZone && selectedNumber ? <Msg>Booth <strong>{selectedNumber}{selectedZone}</strong> is available</Msg>
-                    : null}
-                  </div>
-
-                  {/* Button */}
-                  <button
-                    type="button"
-                    disabled={!valid || requesting}
-                    onClick={handleRequestNumber}
-                    className="relative mt-4 w-full overflow-hidden rounded-xl bg-orange-500 py-3.5 text-sm font-normal text-white outline-none active:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {requesting
-                      ? <span className="flex items-center justify-center gap-2"><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> Getting your number…</span>
-                      : "Get My Exit Number"
-                    }
-                  </button>
-
-                  {/* Help / Support contact */}
-                  <div className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-zinc-400 dark:text-zinc-500">
-                    <span>Having issues or need help?</span>
-                    <a
-                      href="tel:01000774213"
-                      className="inline-flex items-center gap-1 font-semibold text-orange-500 transition hover:text-orange-600 hover:underline active:scale-95 dark:text-orange-400"
-                    >
-                      <Phone className="h-3 w-3 shrink-0" />
-                      <span>01000774213</span>
-                    </a>
-                  </div>
+          {loading && !hasUsableQueueCache(data) && (
+            <Card>
+              <div className="animate-pulse space-y-5 py-2">
+                <div className="h-4 w-40 rounded bg-zinc-200 dark:bg-zinc-800" />
+                <div className="h-11 w-full rounded-xl bg-zinc-200 dark:bg-zinc-800" />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="h-11 rounded-xl bg-zinc-200 dark:bg-zinc-800" />
+                  <div className="h-11 rounded-xl bg-zinc-200 dark:bg-zinc-800" />
                 </div>
-              );
-            })()}
+                <div className="h-12 w-full rounded-xl bg-zinc-200 dark:bg-zinc-800" />
+              </div>
+            </Card>
+          )}
 
-            {/* ── CLOSED ── */}
-            {data.windowState === "closed" && (
-              <EmptyState emoji="🔒" title="Queue is closed" sub="Contact the Bazarna team for help.">
+          {/* ════════════════════════════════════════
+              STATE: no event
+          ════════════════════════════════════════ */}
+          {data && !data.event && !loading && !data.ticket && (
+            <Card>
+              <EmptyState emoji="🕐" title="No active event" sub="The admin will open the queue soon.">
                 <a
                   href="tel:01000774213"
                   className="mt-2 inline-flex items-center gap-2 rounded-2xl border border-orange-200 bg-orange-50/80 px-4 py-2.5 text-sm font-semibold text-orange-600 shadow-sm transition hover:bg-orange-100/80 active:scale-95 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-400 dark:hover:bg-orange-950/50"
@@ -512,83 +325,309 @@ export default function DashboardPage() {
                   <span>01000774213</span>
                 </a>
               </EmptyState>
-            )}
-          </Card>
-        )}
+            </Card>
+          )}
 
-        {/* ════════════════════════════════════════
-            STATE: ticket
-        ════════════════════════════════════════ */}
-        {data?.ticket && (
-          <div className="space-y-3">
+          {/* ════════════════════════════════════════
+              STATE: event day passed
+          ════════════════════════════════════════ */}
+          {data?.event && data.eventDayPassed && !data.ticket && (
+            <Card>
+              <EmptyState emoji="🔄" title="Event ended" sub="A new queue starts at #1 when the next event opens." />
+            </Card>
+          )}
 
-            {/* Queue ended today */}
-            {data.queueEndedToday && data.ticket.status !== "COMPLETED" && (
-              <div className="rounded-2xl border border-orange-200/50 bg-orange-50/80 px-4 py-3 dark:border-orange-900/40 dark:bg-orange-950/20">
-                <p className="text-sm font-bold text-orange-700 dark:text-orange-300">Queue closed for today</p>
-                <p className="text-xs text-orange-500/80">Fresh number tomorrow. Keep this one.</p>
-              </div>
-            )}
-
-            {/* Completed */}
-            {data.ticket.status === "COMPLETED" && (
-              <div className="rounded-2xl border border-emerald-200/50 bg-emerald-50/80 px-4 py-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
-                <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">Exit complete ✓</p>
-                <p className="text-xs text-emerald-500/80">See you at the next event!</p>
-              </div>
-            )}
-
-            {/* ── TICKET CARD ── */}
-            <div className="overflow-hidden rounded-3xl border-2 border-white/50 bg-white/55 shadow-lg backdrop-blur-xl dark:border-white/50 dark:bg-zinc-900/55 sm:mb-0">
-              {/* Brand accent bar */}
-              <div className={`h-[5px] w-full ${currentEntrance === "BYOUTH" ? "bg-amber-400" : "bg-orange-500"}`} />
-
-              {/* Top row */}
-              <div className="flex items-center justify-between px-5 pt-4">
-                <div className="min-w-0">
-                  <p className="truncate text-[16px] font-normal text-zinc-900 dark:text-zinc-100">
-                    <span className="text-zinc-500 dark:text-zinc-400">Brand name:</span>{" "}
-                    {brandName}
-                  </p>
-                  <div className="mt-1 flex items-center gap-2">
-                    {currentEntrance && (
-                      <span className="relative h-6 w-6 overflow-hidden rounded-lg">
-                        <Image src={getEntranceImage(currentEntrance)} alt="" fill sizes="24px" className="object-cover" />
-                      </span>
-                    )}
-                    <span className="truncate text-[10px] font-extrabold uppercase tracking-widest text-zinc-400">
-                      {data.entranceLabel} Exit
-                    </span>
-                  </div>
-                  {data?.user?.boothNumber && data.user.boothNumber !== "—" && data.user.boothNumber !== "N/A" && (
-                    <p className="mt-1 truncate text-xs text-zinc-400">
-                      Booth <span className="font-bold text-zinc-600 dark:text-zinc-300">{data.user.boothNumber}</span>
-                    </p>
-                  )}
-                </div>
-                <StatusBadge status={data.ticket.status} />
-              </div>
-
-              {/* Number */}
-              <div className="pb-6 pt-3 text-center">
-                <p className="text-[10px] font-extrabold uppercase tracking-[.22em] text-zinc-400">Your exit number</p>
-                <p
-                  className="font-black leading-none text-orange-500"
-                  style={{ fontSize: "clamp(5rem,22vw,7rem)" }}
-                >
-                  #{data.ticket.queueNumber}
+          {/* ════════════════════════════════════════
+              STATE: ticket in other entrance
+          ════════════════════════════════════════ */}
+          {data?.otherEntranceTicket && !data.ticket && (
+            <Card>
+              <div className="flex flex-col items-center py-2 text-center">
+                <span className="relative h-20 w-20 overflow-hidden rounded-3xl shadow-md">
+                  <Image src={getEntranceImage(data.otherEntranceTicket.entranceType)} alt="" fill sizes="80px" className="object-cover" />
+                </span>
+                <p className="mt-5 text-lg font-extrabold text-zinc-900 dark:text-zinc-100">
+                  Active Number in {data.otherEntranceTicket.entranceLabel} Exit
+                </p>
+                <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+                  You already requested exit number{" "}
+                  <span className="text-3xl font-black text-orange-500">#{data.otherEntranceTicket.queueNumber}</span>{" "}
+                  in <strong>{data.otherEntranceTicket.entranceLabel} Exit</strong>.
                 </p>
                 <p className="mt-2 text-xs text-zinc-400">
-                  Requested at{" "}
-                  <span className="font-semibold text-zinc-600 dark:text-zinc-300">
-                    {formatTime(new Date(data.ticket.requestedAt))}
-                  </span>
+                  Each brand can only join one exit queue at a time.
                 </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await fetchApi("/api/entrance", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ entranceType: data.otherEntranceTicket!.entranceType }),
+                    });
+                    window.location.href = "/dashboard";
+                  }}
+                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 py-3.5 text-sm font-normal text-white transition hover:bg-orange-600 active:scale-[.98]"
+                >
+                  Go to {data.otherEntranceTicket.entranceLabel} Ticket (#{data.otherEntranceTicket.queueNumber}) →
+                </button>
+              </div>
+            </Card>
+          )}
+
+          {/* ════════════════════════════════════════
+              STATE: queue panel (no ticket yet)
+          ════════════════════════════════════════ */}
+          {data?.event && !data.eventDayPassed && !data.ticket && !data.otherEntranceTicket && (
+            <Card>
+              {/* ── BEFORE ── */}
+              {data.windowState === "before" && (
+                <div className="flex flex-col items-center gap-4 py-2 text-center">
+                  <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-50 dark:bg-orange-950/40">
+                    <Clock className="h-7 w-7 text-orange-500" />
+                  </span>
+                  <p className="font-bold text-zinc-800 dark:text-zinc-200">Opens at {formatTime(openTime!)}</p>
+                  {countdown && countdown.total > 0 && (
+                    <div className="flex gap-2">
+                      {(countdown.total >= 24 * 60 * 60 * 1000
+                        ? [{ l: "days", v: Math.floor(countdown.total / (24 * 60 * 60 * 1000)) }]
+                        : [{ l: "hr", v: countdown.hours }, { l: "min", v: countdown.minutes }, { l: "sec", v: countdown.seconds }]
+                      ).map(({ l, v }) => (
+                        <div key={l} className="min-w-[60px] rounded-2xl bg-zinc-100 py-3 text-center dark:bg-zinc-800">
+                          <p className="text-2xl font-black tabular-nums text-zinc-900 dark:text-zinc-100">{String(v).padStart(2, "0")}</p>
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">{l}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <button disabled className="w-full cursor-not-allowed rounded-xl bg-zinc-100 py-3 text-sm font-normal text-zinc-400 dark:bg-zinc-800 dark:text-zinc-600">
+                    Not open yet
+                  </button>
+                </div>
+              )}
+
+              {/* ── OPEN ── */}
+              {data.windowState === "open" && (() => {
+                const occ = (data.occupiedBooths ?? []).map((b) => normalizeBoothCode(b)).filter((b): b is string => !!b);
+                const zones = eventZones.map((z) => {
+                  const name = z.name.trim().toUpperCase();
+                  let taken = 0;
+                  for (let n = 1; n <= z.limit; n++) if (occ.includes(`${n}${name}`)) taken++;
+                  return { ...z, name, remaining: z.limit - taken, isFull: taken >= z.limit };
+                });
+                const allFull = zones.length > 0 && zones.every((z) => z.isFull);
+                const zoneObj = zones.find((z) => z.name === selectedZone);
+                const zoneFull = Boolean(zoneObj?.isFull);
+                const code = selectedZone && selectedNumber ? normalizeBoothCode(`${selectedNumber}${selectedZone}`) : "";
+                const isTaken = Boolean(code && occ.includes(code));
+                const valid = Boolean(selectedZone && selectedNumber && !isTaken && !zoneFull && !allFull);
+
+                const assignedBrand = code ? data.boothBrands?.[code] : null;
+
+                return (
+                  <div>
+                    {/* Brand name row */}
+                    <div className="mb-6">
+                      <p className="truncate text-[16px] font-normal leading-snug text-zinc-900 dark:text-white">
+                        <span className="text-zinc-500 dark:text-zinc-400">Brand name:</span>{" "}
+                        <span className="font-bold">{brandName}</span>
+                      </p>
+                      {data?.user?.boothNumber && data.user.boothNumber !== "—" && data.user.boothNumber !== "N/A" && (
+                        <p className="mt-0.5 truncate text-xs text-zinc-400">
+                          Booth <span className="font-bold text-zinc-600 dark:text-zinc-300">{data.user.boothNumber}</span>
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Entrance chip */}
+                    {currentEntrance && (
+                      <div className="mb-6 flex items-center justify-between border-b border-zinc-200/80 pb-4 dark:border-zinc-700/80">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg">
+                            <Image src={getEntranceImage(currentEntrance)} alt="" fill sizes="32px" className="object-cover" />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400">Selected exit</p>
+                            <p className="truncate text-sm font-bold text-zinc-800 dark:text-zinc-100">{data.entranceLabel}</p>
+                          </div>
+                        </div>
+                        <span className="ml-3 flex shrink-0 items-center gap-1.5 text-xs font-bold text-emerald-500">
+                          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                          Open
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Zone + Brand / Booth Dropdowns */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex flex-col">
+                        <label className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-widest text-zinc-500">
+                          Zone
+                        </label>
+                        <select
+                          value={selectedZone}
+                          onChange={(e) => {
+                            setSelectedZone(e.target.value);
+                            setSelectedNumber("");
+                          }}
+                          className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm font-bold text-zinc-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                        >
+                          <option value="">Select</option>
+                          {zones.map((z) => (
+                            <option key={z.name} value={z.name} disabled={z.isFull}>
+                              Zone {z.name}{z.isFull ? " (Full)" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col">
+                        <label className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-widest text-zinc-500">
+                          Brand Name
+                        </label>
+                        <BoothNumberPicker
+                          zone={selectedZone}
+                          limit={zoneObj?.limit ?? 0}
+                          value={selectedNumber}
+                          occupied={occ}
+                          boothBrands={data.boothBrands ?? {}}
+                          disabled={!selectedZone || zoneFull}
+                          onChange={setSelectedNumber}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Inline validation */}
+                    <div className="mt-4 min-h-[24px]">
+                      {allFull ? (
+                        <Msg error>All booths are taken</Msg>
+                      ) : zoneFull ? (
+                        <Msg error>Zone {selectedZone} is full</Msg>
+                      ) : isTaken ? (
+                        <Msg error>Booth {selectedNumber}{selectedZone} is taken</Msg>
+                      ) : selectedZone && selectedNumber ? (
+                        <Msg>
+                          Booth <strong>{selectedNumber}{selectedZone}</strong> is available
+                        </Msg>
+                      ) : null}
+                    </div>
+
+                    {/* CTA Button */}
+                    <button
+                      type="button"
+                      disabled={!valid || requesting}
+                      onClick={handleRequestNumber}
+                      className="relative mt-4 w-full overflow-hidden rounded-xl bg-orange-500 py-3.5 text-sm font-bold text-white shadow-lg shadow-orange-500/20 outline-none transition hover:bg-orange-600 active:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {requesting ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                          Getting your number…
+                        </span>
+                      ) : (
+                        "Get My Exit Number"
+                      )}
+                    </button>
+
+                    {/* Help / Support contact */}
+                    <div className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-zinc-400 dark:text-zinc-500">
+                      <span>Having issues or need help?</span>
+                      <a
+                        href="tel:01000774213"
+                        className="inline-flex items-center gap-1 font-semibold text-orange-500 transition hover:text-orange-600 hover:underline active:scale-95 dark:text-orange-400"
+                      >
+                        <Phone className="h-3 w-3 shrink-0" />
+                        <span>01000774213</span>
+                      </a>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ── CLOSED ── */}
+              {data.windowState === "closed" && (
+                <EmptyState emoji="🔒" title="Queue is closed" sub="Contact the Bazarna team for help.">
+                  <a
+                    href="tel:01000774213"
+                    className="mt-2 inline-flex items-center gap-2 rounded-2xl border border-orange-200 bg-orange-50/80 px-4 py-2.5 text-sm font-semibold text-orange-600 shadow-sm transition hover:bg-orange-100/80 active:scale-95 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-400 dark:hover:bg-orange-950/50"
+                  >
+                    <Phone className="h-4 w-4 shrink-0 text-orange-500" />
+                    <span>01000774213</span>
+                  </a>
+                </EmptyState>
+              )}
+            </Card>
+          )}
+
+          {/* ════════════════════════════════════════
+              STATE: ticket
+          ════════════════════════════════════════ */}
+          {data?.ticket && (
+            <div className="space-y-3">
+              {/* Queue ended today */}
+              {data.queueEndedToday && data.ticket.status !== "COMPLETED" && (
+                <div className="rounded-2xl border border-orange-200/50 bg-orange-50/80 px-4 py-3 dark:border-orange-900/40 dark:bg-orange-950/20">
+                  <p className="text-sm font-bold text-orange-700 dark:text-orange-300">Queue closed for today</p>
+                  <p className="text-xs text-orange-500/80">Fresh number tomorrow. Keep this one.</p>
+                </div>
+              )}
+
+              {/* Completed */}
+              {data.ticket.status === "COMPLETED" && (
+                <div className="rounded-2xl border border-emerald-200/50 bg-emerald-50/80 px-4 py-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+                  <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">Exit complete ✓</p>
+                  <p className="text-xs text-emerald-500/80">See you at the next event!</p>
+                </div>
+              )}
+
+              {/* ── TICKET CARD ── */}
+              <div className="overflow-hidden rounded-3xl border-2 border-white/50 bg-white/55 shadow-lg backdrop-blur-xl dark:border-white/50 dark:bg-zinc-900/55 sm:mb-0">
+                <div className={`h-[5px] w-full ${currentEntrance === "BYOUTH" ? "bg-amber-400" : "bg-orange-500"}`} />
+
+                <div className="flex items-center justify-between px-5 pt-4">
+                  <div className="min-w-0">
+                    <p className="truncate text-[16px] font-normal text-zinc-900 dark:text-zinc-100">
+                      <span className="text-zinc-500 dark:text-zinc-400">Brand name:</span>{" "}
+                      {brandName}
+                    </p>
+                    <div className="mt-1 flex items-center gap-2">
+                      {currentEntrance && (
+                        <span className="relative h-6 w-6 overflow-hidden rounded-lg">
+                          <Image src={getEntranceImage(currentEntrance)} alt="" fill sizes="24px" className="object-cover" />
+                        </span>
+                      )}
+                      <span className="truncate text-[10px] font-extrabold uppercase tracking-widest text-zinc-400">
+                        {data.entranceLabel} Exit
+                      </span>
+                    </div>
+                    {data?.user?.boothNumber && data.user.boothNumber !== "—" && data.user.boothNumber !== "N/A" && (
+                      <p className="mt-1 truncate text-xs text-zinc-400">
+                        Booth <span className="font-bold text-zinc-600 dark:text-zinc-300">{data.user.boothNumber}</span>
+                      </p>
+                    )}
+                  </div>
+                  <StatusBadge status={data.ticket.status} />
+                </div>
+
+                <div className="pb-6 pt-3 text-center">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[.22em] text-zinc-400">Your exit number</p>
+                  <p
+                    className="font-black leading-none text-orange-500"
+                    style={{ fontSize: "clamp(5rem,22vw,7rem)" }}
+                  >
+                    #{data.ticket.queueNumber}
+                  </p>
+                  <p className="mt-2 text-xs text-zinc-400">
+                    Requested at{" "}
+                    <span className="font-semibold text-zinc-600 dark:text-zinc-300">
+                      {formatTime(new Date(data.ticket.requestedAt))}
+                    </span>
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
       </DashboardBanner>
 
       {/* QR stays below the video section on web */}
@@ -655,11 +694,16 @@ function EmptyState({
 
 function Msg({ children, error }: { children: React.ReactNode; error?: boolean }) {
   return (
-    <p className={`flex items-center gap-1.5 text-xs font-semibold ${error ? "text-red-500" : "justify-center text-emerald-600 dark:text-emerald-400"}`}>
-      {error
-        ? <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-        : <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-      }
+    <p
+      className={`flex items-center gap-1.5 text-xs font-semibold ${
+        error ? "text-red-500" : "justify-center text-emerald-600 dark:text-emerald-400"
+      }`}
+    >
+      {error ? (
+        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+      ) : (
+        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+      )}
       {children}
     </p>
   );
