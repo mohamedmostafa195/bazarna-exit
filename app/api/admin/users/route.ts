@@ -68,3 +68,35 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ deleted: result.count });
   }, "DELETE /api/admin/users");
 }
+
+export async function PATCH(request: Request) {
+  return withApiHandler(async () => {
+    const { session, error } = await requireAdmin(request);
+    if (error) return error;
+
+    const body = await parseJsonBody<{ action?: string; confirm?: string }>(request).catch(
+      () => ({}) as { action?: string; confirm?: string }
+    );
+
+    if (body.action === "RESET_ALL_BOOTHS" || body.confirm === "RESET_ALL_BOOTHS") {
+      const result = await prisma.user.updateMany({
+        where: { role: "BRAND" },
+        data: { boothNumber: "N/A" },
+      });
+
+      await logAction({
+        action: "QUEUE_RESET",
+        actorName: session!.user.name ?? session!.user.email,
+        details: `Reset booth numbers to N/A for all brand accounts (${result.count} updated)`,
+      });
+
+      return NextResponse.json({ updated: result.count });
+    }
+
+    return NextResponse.json(
+      { error: 'Invalid action. Send { "action": "RESET_ALL_BOOTHS" }' },
+      { status: 400 }
+    );
+  }, "PATCH /api/admin/users");
+}
+
