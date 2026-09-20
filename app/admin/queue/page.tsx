@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { fetchApi } from "@/lib/fetch-api";
 import { EntranceTabs } from "@/components/entrance-tabs";
 import { type EntranceType } from "@/lib/entrance";
-import { CheckCircle, Trash2, Search, MessageSquare, X, Pencil } from "lucide-react";
+import { CheckCircle, Trash2, Search, MessageSquare, X } from "lucide-react";
 
 interface Ticket {
   id: string;
@@ -36,10 +36,6 @@ export default function AdminQueuePage() {
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedNoteTicket, setSelectedNoteTicket] = useState<Ticket | null>(null);
-  const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
-  const [editBrandName, setEditBrandName] = useState("");
-  const [editBoothNumber, setEditBoothNumber] = useState("");
-  const [savingEdit, setSavingEdit] = useState(false);
   const [entrance, setEntrance] = useState<EntranceType>("BAZARNA");
   const activeEntranceRef = useRef<EntranceType>("BAZARNA");
 
@@ -148,50 +144,6 @@ export default function AdminQueuePage() {
     }
 
     toast.success(label ?? "Action completed");
-    loadQueue(activeEntranceRef.current, page, search, statusFilter);
-  }
-
-  function handleStartEdit(t: Ticket) {
-    setEditingTicket(t);
-    setEditBrandName(t.brandName);
-    setEditBoothNumber(t.boothNumber);
-  }
-
-  async function handleSaveEdit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!editingTicket) return;
-
-    if (!editBrandName.trim()) {
-      toast.error("Brand name cannot be empty");
-      return;
-    }
-    if (!editBoothNumber.trim()) {
-      toast.error("Booth number cannot be empty");
-      return;
-    }
-
-    setSavingEdit(true);
-    const { ok, data } = await fetchApi<{
-      error?: string;
-      ticket?: { id: string; brandName: string; boothNumber: string };
-    }>("/api/admin/queue/edit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ticketId: editingTicket.id,
-        brandName: editBrandName.trim(),
-        boothNumber: editBoothNumber.trim().toUpperCase(),
-      }),
-    });
-    setSavingEdit(false);
-
-    if (!ok) {
-      toast.error(data.error ?? "Failed to update ticket");
-      return;
-    }
-
-    toast.success(`Updated ticket #${editingTicket.queueNumber}`);
-    setEditingTicket(null);
     loadQueue(activeEntranceRef.current, page, search, statusFilter);
   }
 
@@ -312,34 +264,23 @@ export default function AdminQueuePage() {
                           : "—"}
                     </td>
                     <td className="py-3">
-                      <div className="flex items-center gap-1">
+                      {t.status !== "COMPLETED" && (
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => handleStartEdit(t)}
-                          title="Edit Brand & Booth"
-                          className="h-8 w-8 p-0 text-zinc-500 hover:bg-orange-50 hover:text-orange-600 dark:text-zinc-400 dark:hover:bg-orange-950/40 dark:hover:text-orange-400"
+                          onClick={() =>
+                            adminAction(
+                              "/api/admin/queue/complete",
+                              { ticketId: t.id },
+                              `Marked #${t.queueNumber} complete`
+                            )
+                          }
+                          title="Mark Complete"
+                          className="h-8 w-8 p-0 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300"
                         >
-                          <Pencil className="h-4 w-4" />
+                          <CheckCircle className="h-4 w-4" />
                         </Button>
-                        {t.status !== "COMPLETED" && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() =>
-                              adminAction(
-                                "/api/admin/queue/complete",
-                                { ticketId: t.id },
-                                `Marked #${t.queueNumber} complete`
-                              )
-                            }
-                            title="Mark Complete"
-                            className="h-8 w-8 p-0 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300"
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -383,82 +324,6 @@ export default function AdminQueuePage() {
             </div>
           )}
         </Card>
-
-        {/* Edit Ticket Modal */}
-        {editingTicket && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-3xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
-              <div className="flex items-center justify-between border-b border-zinc-100 pb-3 dark:border-zinc-800">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-orange-100 text-orange-600 dark:bg-orange-950/50 dark:text-orange-400">
-                    <Pencil className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                      Edit Ticket #{editingTicket.queueNumber}
-                    </h3>
-                    <p className="text-xs text-zinc-500">
-                      Update brand name and booth allocation
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setEditingTicket(null)}
-                  className="rounded-full p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSaveEdit} className="mt-4 space-y-4">
-                <div>
-                  <label className="mb-1 block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                    Brand Name
-                  </label>
-                  <input
-                    type="text"
-                    value={editBrandName}
-                    onChange={(e) => setEditBrandName(e.target.value)}
-                    required
-                    className="h-10 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-                    placeholder="e.g. Mostafaa"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                    Booth Number
-                  </label>
-                  <input
-                    type="text"
-                    value={editBoothNumber}
-                    onChange={(e) => setEditBoothNumber(e.target.value.toUpperCase())}
-                    required
-                    className="h-10 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm uppercase text-zinc-900 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-                    placeholder="e.g. 17A, 1Y, 5B"
-                  />
-                </div>
-
-                <div className="mt-6 flex items-center justify-end gap-2 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setEditingTicket(null)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    loading={savingEdit}
-                  >
-                    Save Changes
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
 
         {/* Note Viewer Modal */}
         {selectedNoteTicket && (
