@@ -19,8 +19,18 @@ export async function GET(request: Request) {
   const limit = parseInt(searchParams.get("limit") ?? "20", 10);
 
   const event = eventId
-    ? await prisma.event.findUnique({ where: { id: eventId } })
-    : await getActiveEvent(entranceType);
+    ? await prisma.event.findUnique({
+        where: { id: eventId },
+        include: { zones: { orderBy: { name: "asc" } } },
+      })
+    : await prisma.event.findFirst({
+        where: {
+          isActive: true,
+          ...(entranceType ? { entranceType } : {}),
+        },
+        orderBy: { eventDate: "desc" },
+        include: { zones: { orderBy: { name: "asc" } } },
+      });
 
   if (!event) {
     return NextResponse.json({ error: "No event found" }, { status: 404 });
@@ -50,6 +60,21 @@ export async function GET(request: Request) {
   const offset = (page - 1) * limit;
   const paginated = tickets.slice(offset, offset + limit);
 
+  // Fetch booth-brand mappings for this event
+  const boothBrandRows = await prisma.$queryRawUnsafe<
+    { booth_code: string; brand_name: string }[]
+  >(
+    `SELECT booth_code, brand_name FROM event_booth_brands WHERE event_id = $1`,
+    event.id
+  ).catch(() => []);
+
+  const boothBrands: Record<string, string> = {};
+  for (const row of boothBrandRows) {
+    boothBrands[row.booth_code] = row.brand_name;
+  }
+
+  const occupiedBooths = tickets.map((t) => t.user.boothNumber).filter(Boolean);
+
   return NextResponse.json({
     event: {
       id: event.id,
@@ -58,9 +83,13 @@ export async function GET(request: Request) {
       queueOpenTime: event.queueOpenTime,
       queueCloseTime: event.queueCloseTime,
       currentServingNumber: event.currentServingNumber,
+      zones: event.zones,
     },
+    boothBrands,
+    occupiedBooths,
     tickets: paginated.map((t) => ({
       id: t.id,
+      userId: t.userId,
       queueNumber: t.queueNumber,
       status: t.status,
       brandName: t.user.brandName,

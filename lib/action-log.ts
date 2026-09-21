@@ -3,6 +3,7 @@ import { getEntranceLabel, isEntranceType } from "@/lib/entrance";
 
 export const ACTION_TYPES = [
   "QUEUE_REQUESTED",
+  "ADMIN_TICKET_ISSUED",
   "CALL_NEXT",
   "SKIP",
   "RECALL",
@@ -14,6 +15,7 @@ export const ACTION_TYPES = [
   "NOTE_SUBMITTED",
   "NOTE_DELETED",
   "TICKET_EDIT",
+  "TICKET_DELETED",
 ] as const;
 
 export type ActionType = (typeof ACTION_TYPES)[number];
@@ -30,6 +32,7 @@ export interface LogActionParams {
 
 const ACTION_LABELS: Record<ActionType, string> = {
   QUEUE_REQUESTED: "New queue number",
+  ADMIN_TICKET_ISSUED: "Admin issued ticket",
   CALL_NEXT: "Called next",
   SKIP: "Skipped",
   RECALL: "Recalled",
@@ -41,10 +44,12 @@ const ACTION_LABELS: Record<ActionType, string> = {
   NOTE_SUBMITTED: "Note / Feedback submitted",
   NOTE_DELETED: "Note deleted / cleared",
   TICKET_EDIT: "Ticket updated",
+  TICKET_DELETED: "Ticket deleted",
 };
 
 export const ACTION_DESCRIPTIONS: Record<ActionType, string> = {
   QUEUE_REQUESTED: "A brand requested a queue number",
+  ADMIN_TICKET_ISSUED: "Admin manually issued a queue ticket (override)",
   CALL_NEXT: "Call the next waiting brand to the exit",
   SKIP: "Skip the current number and call the next one",
   RECALL: "Call a specific number again (brand missed their turn)",
@@ -56,10 +61,12 @@ export const ACTION_DESCRIPTIONS: Record<ActionType, string> = {
   NOTE_SUBMITTED: "A brand submitted a note or feedback",
   NOTE_DELETED: "Admin deleted or cleared a brand note",
   TICKET_EDIT: "Admin updated brand name or booth number",
+  TICKET_DELETED: "Admin deleted a queue ticket",
 };
 
 const ACTION_COLORS: Record<ActionType, string> = {
   QUEUE_REQUESTED: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+  ADMIN_TICKET_ISSUED: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
   CALL_NEXT: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
   SKIP: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
   RECALL: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
@@ -71,6 +78,7 @@ const ACTION_COLORS: Record<ActionType, string> = {
   NOTE_SUBMITTED: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
   NOTE_DELETED: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300",
   TICKET_EDIT: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300",
+  TICKET_DELETED: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300",
 };
 
 export function getActionLabel(action: string): string {
@@ -96,6 +104,8 @@ export function getActionSummary(log: {
   switch (log.action as ActionType) {
     case "QUEUE_REQUESTED":
       return `${log.brandName ?? "Brand"} got ${num}`;
+    case "ADMIN_TICKET_ISSUED":
+      return `Admin issued ${num}${brand}`;
     case "CALL_NEXT":
       return `Called ${num}${brand}`;
     case "SKIP":
@@ -106,6 +116,8 @@ export function getActionSummary(log: {
       return `Completed ${num}${brand}`;
     case "CHECKOUT":
       return `Checked out ${num}${brand}`;
+    case "TICKET_DELETED":
+      return `Deleted ${num}${brand}`;
     case "QUEUE_RESET":
       return log.actorName
         ? `${log.actorName} reset the queue`
